@@ -110,13 +110,16 @@ Consumed by `orange-buffalo-cloud/immich/immich.yml`.
 
 ### Package visibility
 
-GHCR container packages are created **private**, regardless of repository
-visibility, and GitHub exposes **no REST endpoint** to change that — it is a
-one-time manual toggle in the web UI:
+The package is **public**, and was created that way by the first workflow run —
+no manual step was needed.
 
-> Profile → Packages → `immich-server` → Package settings → Danger Zone →
-> Change visibility → Public
+Container packages published from GitHub Actions are linked to the source
+repository and inherit its visibility, so a public repo yields a public package.
+(GitHub's docs state that packages default to private; that applies to packages
+published with a PAT scoped to a personal account, not to Actions-published
+packages linked to a public repo. Verified empirically: an anonymous ghcr.io
+token with no credentials pulls the manifest with HTTP 200.)
 
-This must be done once, right after the first successful publish. Until it is,
-any consumer needs `docker login ghcr.io`. There is nothing sensitive in this
-image (the source is a public AGPL-3.0 fork), so it is public.
+Note that GitHub exposes no REST endpoint to change package visibility, so if it
+ever does come out private, the fix is a manual toggle in the web UI:
+Profile → Packages → `immich-server` → Package settings → Danger Zone.
