@@ -1,0 +1,139 @@
+name: Fork Android
+
+# Fork-owned build of the Immich Android app.
+#
+# Upstream's build-mobile.yml cannot run here: it needs the immich-app
+# PUSH_O_MATIC GitHub App secrets and runs on the self-hosted `mich` runner.
+# This is the same set of steps on a hosted runner, signed with our own
+# keystore, and published as an artifact image the server build consumes.
+#
+# See FORK.md for the full ledger of fork changes.
+
+on:
+  push:
+    branches: [orange-buffalo]
+    paths:
+      - 'mobile/**'
+      - 'i18n/**'
+      - 'open-api/**'
+      - '.github/workflows/fork-android.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: fork-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  ARTIFACT_IMAGE: ghcr.io/${{ github.repository_owner }}/immich-apk
+
+jobs:
+  build:
+    name: Build and Publish APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup mise
+        uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          working_directory: ./mobile
+
+      - name: Create the keystore
+        env:
+          KEY_JKS: ${{ secrets.KEY_JKS }}
+        working-directory: ./mobile
+        run: printf "%s" "$KEY_JKS" | base64 -d > android/key.jks
+
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: ''
+
+      - name: Install dependencies
+        run: mise //mobile:install:ci
+
+      - name: Generate translation file
+        run: mise //mobile:codegen:translation
+
+      - name: Generate platform APIs
+        run: mise //mobile:codegen:pigeon
+        working-directory: ./mobile
+
+      - name: Build APK
+        working-directory: ./mobile
+        env:
+          ALIAS: ${{ secrets.ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: flutter build apk --release
+
+      - name: Verify the APK is signed with our key
+        working-directory: ./mobile
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          ls -l "$APK"
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" | tee /tmp/certs.txt
+          grep -q "O=orange-buffalo" /tmp/certs.txt || {
+            echo "APK is not signed with the orange-buffalo keystore" >&2
+            exit 1
+          }
+          "$ANDROID_HOME"/build-tools/*/aapt2 dump packagename "$APK"
+          "$ANDROID_HOME"/build-tools/*/aapt2 dump packagename "$APK" | grep -qx "io.orangebuffalo.immich" || {
+            echo "Unexpected applicationId" >&2
+            exit 1
+          }
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: immich-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      - name: Stage artifact image context
+        run: |
+          mkdir -p /tmp/apk-image
+          cp mobile/build/app/outputs/flutter-apk/app-release.apk /tmp/apk-image/immich.apk
+          cd /tmp/apk-image
+          sha256sum immich.apk > SHA256SUMS
+          cat > Dockerfile <<'DOCKERFILE'
+          FROM scratch
+          COPY immich.apk /immich.apk
+          COPY SHA256SUMS /SHA256SUMS
+          DOCKERFILE
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Publish artifact image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: /tmp/apk-image
+          push: true
+          tags: |
+            ${{ env.ARTIFACT_IMAGE }}:latest
+            ${{ env.ARTIFACT_IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Immich Android APK built from the orange-buffalo fork

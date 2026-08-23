@@ -14,7 +14,7 @@ name: Fork Docker
 on:
   push:
     branches: [orange-buffalo]
-    paths-ignore: ['**.md']
+    paths-ignore: ['**.md', 'mobile/**']
   workflow_dispatch:
 
 concurrency:
