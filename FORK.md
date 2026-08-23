@@ -57,7 +57,28 @@ build context (repo root, not `server/`). If upstream changes either, this
 workflow needs the same change. The Dockerfile was restructured substantially
 between `v3.1.0` and `main`, so re-verify the build on every version bump.
 
-### 2. `FORK.md` — added
+### 2. `server/src/config.ts` — **modified**
+
+`defaults.newVersionCheck.enabled`: `true` → `false`.
+
+The version check does *not* use `IMMICH_REPOSITORY`. It calls a hardcoded
+immich-hosted endpoint (`https://version.immich.cloud/version`, set in
+`config.repository.ts`, with no env override) and compares the result against
+`serverVersion` from `server/package.json`. Because this branch sits on an
+unmodified release tag, that comparison is technically correct — but a "new
+version available" banner is not actionable for our users, since updating
+requires a rebase and rebuild here. We track releases out-of-band instead.
+
+Only deltas from `defaults` are persisted to `system_metadata`
+(`utils/config.ts` `updateConfig` skips values equal to the default), so
+flipping the default takes effect without a DB change.
+
+**Conflict risk on rebase: LOW but non-zero** — this is the only upstream file
+we edit. If it conflicts, re-apply by setting `enabled: false` in the
+`newVersionCheck` block of `defaults`. If upstream restructures that config,
+verify the setting still exists rather than blindly resolving.
+
+### 3. `FORK.md` — added
 
 This file.
 
@@ -75,6 +96,10 @@ This file.
   patching it would mean editing an upstream file for no functional gain.
 - **Media location.** Deployment mounts photos at `/data`, which is upstream's
   default since `v1.137.0`. No patch needed.
+- **System config via `IMMICH_CONFIG_FILE`.** Would make settings declarative,
+  but it makes the *entire* admin settings UI read-only
+  (`system-config.service.ts`: "Cannot update configuration while
+  IMMICH_CONFIG_FILE is in use"). Not worth it for one toggle.
 
 ## Bumping to a new upstream release
 
@@ -94,7 +119,7 @@ Then:
    (volume mounts, required env vars, Postgres extension versions).
 4. Bump the machine-learning tag in `orange-buffalo-cloud/immich/immich.yml` to
    match the new base version.
-5. Push, let the workflow publish, then pin the new `commit-<sha>` tag in the
+5. Push, let the workflow publish, then pin the new `sha-<short>` tag in the
    deployment.
 
 ## Deployment
@@ -104,7 +129,7 @@ Published image: `ghcr.io/orange-buffalo/immich-server`
 | Tag             | Meaning                                            |
 | --------------- | -------------------------------------------------- |
 | `orange-buffalo`| Moving tag, latest build of this branch.           |
-| `commit-<sha>`  | Immutable. **Pin this in the Swarm stack** — Swarm will not redeploy on an unchanged tag. |
+| `sha-<short>`   | Immutable, 7-char commit sha. **Pin this in the Swarm stack** — Swarm will not redeploy on an unchanged tag. |
 
 Consumed by `orange-buffalo-cloud/immich/immich.yml`.
 

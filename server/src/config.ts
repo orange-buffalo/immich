@@ -389,7 +389,10 @@ export const defaults = Object.freeze<SystemConfig>({
     },
   },
   newVersionCheck: {
-    enabled: true,
+    // orange-buffalo fork: disabled by default. This fork tracks upstream
+    // release tags manually (see FORK.md), so an in-app "new version" banner
+    // is not actionable for our users.
+    enabled: false,
     channel: ReleaseChannel.Stable,
   },
   nightlyTasks: {
