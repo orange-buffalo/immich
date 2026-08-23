@@ -55,7 +55,10 @@ jobs:
       - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: 'zulu'
-          java-version: '17'
+          # Gradle must run on 21: the app module targets Java 17, but the
+          # maplibre_gl plugin compiles with source release 21. Upstream pins 17
+          # here, which fails on a hosted runner.
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1

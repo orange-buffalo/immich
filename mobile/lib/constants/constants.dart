@@ -48,6 +48,10 @@ const String kImmichAppStoreLink = "https://apps.apple.com/app/immich/id16139456
 const String kImmichPlayStoreLink = "https://play.google.com/store/apps/details?id=app.alextran.immich";
 const String kImmichLatestRelease = "https://github.com/immich-app/immich/releases/latest";
 
+// orange-buffalo fork: filename of the APK bundled into the server image and
+// served from the web root. Kept in sync with server/Dockerfile.
+const String kForkApkFileName = "immich.apk";
+
 const int kPhotoTabIndex = 0;
 const int kSearchTabIndex = 1;
 const int kAlbumTabIndex = 2;

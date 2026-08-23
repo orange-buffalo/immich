@@ -78,7 +78,83 @@ we edit. If it conflicts, re-apply by setting `enabled: false` in the
 `newVersionCheck` block of `defaults`. If upstream restructures that config,
 verify the setting still exists rather than blindly resolving.
 
-### 3. `FORK.md` — added
+### 3. Android app — `mobile/android/app/build.gradle` — **modified**
+
+`applicationId`: `app.alextran.immich` → `io.orangebuffalo.immich`.
+
+`namespace` deliberately stays `app.alextran.immich`, so every Kotlin package,
+all pigeon-generated code, and the widget receiver class names in
+`mobile/lib/constants/constants.dart` keep working untouched. Only the install
+identity changes.
+
+This lets our app coexist with an official Play Store install instead of
+colliding on signature (Android refuses to install over an app signed with a
+different key). Migration is therefore side-by-side: install ours, confirm it
+works, then remove the official one.
+
+**Conflict risk on rebase: LOW** — a one-line change in a rarely-touched file.
+
+### 4. `.github/workflows/fork-android.yml` — added
+
+Builds the release APK on a hosted runner and publishes it as a `scratch`
+artifact image at `ghcr.io/orange-buffalo/immich-apk`, following the same
+pattern as `openchamber-web-artifact`. Verifies the signing certificate and
+applicationId before publishing.
+
+Upstream's `build-mobile.yml` is unusable here for the same reasons as
+`docker.yml`, plus it runs on the self-hosted `mich` runner.
+
+**Signing:** our own keystore, held in repo secrets `KEY_JKS` (base64),
+`ALIAS`, `ANDROID_KEY_PASSWORD`, `ANDROID_STORE_PASSWORD`. Load them with:
+
+```bash
+.github/scripts/fork-setup-android-signing.sh <keystore.jks> <password-file>
+# or, to mint a fresh key:
+.github/scripts/fork-setup-android-signing.sh --generate new-key.jks
+```
+
+The keystore is deliberately **not** in this repository. Current certificate:
+
+```
+SHA-256: 47:D8:CB:56:48:11:54:08:3D:F5:97:AD:B6:05:A4:2F:45:70:40:D0:FC:42:66:3D:DF:23:FC:79:D7:33:60:45
+```
+
+**Back the keystore up.** If it is lost, the next APK cannot upgrade an
+installed one: every user must uninstall and reinstall, and uninstalling wipes
+the app's data (`android:allowBackup="false"`), so they lose login and backup
+album selection. Already-uploaded photos are unaffected, and no re-upload
+happens — backup candidates are computed by checksum against the server
+(`backup.repository.dart`), not from local state.
+
+**Runner note:** Gradle must run on JDK 21 even though the app module targets
+17, because the `maplibre_gl` plugin compiles with source release 21. Upstream
+pins 17 in `build-mobile.yml`; that fails here with
+`error: invalid source release: 21`.
+
+**Conflict risk on rebase:** none (new file).
+
+### 5. Android update check — `server_update_notification.dart`, `constants.dart` — **modified**
+
+The app already routes its update check through the server: it listens for
+`on_new_release` over the websocket (`websocket.provider.dart`) and compares its
+own `PackageInfo` version against the server's in
+`server_info.provider.dart:_checkServerVersionMismatch`. Nothing had to be
+implemented for that.
+
+The only upstream-bound part was the *link*: on Android it opened the Play
+Store, which would install the upstream app. It now points at
+`<server>/immich.apk`, derived from `StoreKey.serverEndpoint` (a trailing `api`
+segment is stripped, so sub-path deployments work).
+
+**This means the APK and the server image must be rebuilt together on every
+version bump**, or the app will report itself out of date and download an
+identically-old APK.
+
+**Conflict risk on rebase: MEDIUM** — `server_update_notification.dart` is
+active upstream code. If it conflicts, re-apply by replacing the Android branch
+of `openUpdateLink()` with `forkApkUrl()`.
+
+### 6. `FORK.md` — added
 
 This file.
 
