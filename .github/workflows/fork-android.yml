@@ -88,14 +88,23 @@ jobs:
         run: |
           APK=build/app/outputs/flutter-apk/app-release.apk
           ls -l "$APK"
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" | tee /tmp/certs.txt
-          grep -q "O=orange-buffalo" /tmp/certs.txt || {
-            echo "APK is not signed with the orange-buffalo keystore" >&2
+
+          # Several build-tools versions are installed on hosted runners, so an
+          # unquoted glob would pass the extra matches as arguments. Pick the
+          # newest explicitly.
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          echo "Using build-tools: $BUILD_TOOLS"
+
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | tee /tmp/certs.txt
+          grep -q 'O=orange-buffalo' /tmp/certs.txt || {
+            echo "APK is not signed with our keystore" >&2
             exit 1
           }
-          "$ANDROID_HOME"/build-tools/*/aapt2 dump packagename "$APK"
-          "$ANDROID_HOME"/build-tools/*/aapt2 dump packagename "$APK" | grep -qx "io.orangebuffalo.immich" || {
-            echo "Unexpected applicationId" >&2
+
+          PACKAGE="$("$BUILD_TOOLS/aapt2" dump packagename "$APK")"
+          echo "applicationId: $PACKAGE"
+          [[ "$PACKAGE" == "io.orangebuffalo.immich" ]] || {
+            echo "Unexpected applicationId: $PACKAGE" >&2
             exit 1
           }
 

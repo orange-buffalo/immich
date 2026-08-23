@@ -14,7 +14,7 @@ name: Fork Docker
 on:
   push:
     branches: [orange-buffalo]
-    paths-ignore: ['**.md', 'mobile/**']
+    paths-ignore: ['**.md', 'mobile/**', '.github/workflows/fork-android.yml', '.github/scripts/**']
   workflow_dispatch:
 
 concurrency:
