@@ -165,7 +165,23 @@ identically-old APK.
 active upstream code. If it conflicts, re-apply by replacing the Android branch
 of `openUpdateLink()` with `forkApkUrl()`.
 
-### 6. `FORK.md` — added
+### 6. `server/Dockerfile` — **modified**
+
+One `COPY --from=ghcr.io/orange-buffalo/immich-apk:latest` line placing the APK
+at `/build/www/immich.apk`. `app.common.ts` serves `/build/www` through `sirv`
+as a static directory, so the APK is downloadable at `<server>/immich.apk` with
+no server code changes.
+
+**Ordering constraint:** the server image build depends on the APK artifact
+image existing. `fork-android.yml` must publish before `fork-docker.yml` can
+build. The `:latest` tag also means a server rebuild picks up whatever APK was
+published last, so bump and rebuild both together.
+
+**Conflict risk on rebase: LOW-MEDIUM** — upstream restructures this Dockerfile
+between releases (it changed substantially between v3.1.0 and main). Re-apply
+the `COPY` next to the `LICENSE` copies in the final stage.
+
+### 7. `FORK.md` — added
 
 This file.
 

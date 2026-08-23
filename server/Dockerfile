@@ -96,6 +96,12 @@ RUN ln -s ../../cli/bin/immich server/bin/immich
 COPY LICENSE /licenses/LICENSE.txt
 COPY LICENSE /LICENSE
 
+# orange-buffalo fork: bundle our Android APK into the static web root so the
+# app can be side-loaded from, and updated by, this server. /build/www is
+# served as a plain static directory (app.common.ts), so no server code is
+# needed. Published by .github/workflows/fork-android.yml. See FORK.md.
+COPY --from=ghcr.io/orange-buffalo/immich-apk:latest /immich.apk /build/www/immich.apk
+
 ENV PATH="${PATH}:/usr/src/app/server/bin"
 
 ARG BUILD_ID
