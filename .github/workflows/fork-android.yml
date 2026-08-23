@@ -81,7 +81,11 @@ jobs:
           ALIAS: ${{ secrets.ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-        run: flutter build apk --release
+        # arm64-v8a only: every phone we deploy to is 64-bit ARM. A universal
+        # APK carries armeabi-v7a and x86_64 copies of all native code too,
+        # which roughly triples the size (175MB -> ~65MB) for no benefit, and
+        # this APK ships inside the server image.
+        run: flutter build apk --release --target-platform android-arm64
 
       - name: Verify the APK is signed with our key
         working-directory: ./mobile
@@ -105,6 +109,13 @@ jobs:
           echo "applicationId: $PACKAGE"
           [[ "$PACKAGE" == "io.orangebuffalo.immich" ]] || {
             echo "Unexpected applicationId: $PACKAGE" >&2
+            exit 1
+          }
+
+          NATIVE="$("$BUILD_TOOLS/aapt2" dump badging "$APK" | sed -n "s/^native-code: //p" | tr -d "'")"
+          echo "native-code: $NATIVE"
+          [[ "$NATIVE" == "arm64-v8a" ]] || {
+            echo "Expected an arm64-v8a-only APK, got: $NATIVE" >&2
             exit 1
           }
 

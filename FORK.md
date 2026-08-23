@@ -126,6 +126,13 @@ album selection. Already-uploaded photos are unaffected, and no re-upload
 happens — backup candidates are computed by checksum against the server
 (`backup.repository.dart`), not from local state.
 
+**arm64-v8a only.** Built with `--target-platform android-arm64`, since all
+target devices are 64-bit ARM. A universal APK also carries `armeabi-v7a` and
+`x86_64` native code (~175MB vs ~65MB), and this APK ships inside the server
+image. The build fails if the APK ever contains other ABIs. Side-loading has no
+Play-Store-style split delivery, so if a 32-bit or x86 device ever needs to be
+supported, drop the flag and accept the universal size.
+
 **Runner note:** Gradle must run on JDK 21 even though the app module targets
 17, because the `maplibre_gl` plugin compiles with source release 21. Upstream
 pins 17 in `build-mobile.yml`; that fails here with
