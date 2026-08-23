@@ -126,10 +126,14 @@ album selection. Already-uploaded photos are unaffected, and no re-upload
 happens — backup candidates are computed by checksum against the server
 (`backup.repository.dart`), not from local state.
 
-**arm64-v8a only.** Built with `--target-platform android-arm64`, since all
-target devices are 64-bit ARM. A universal APK also carries `armeabi-v7a` and
-`x86_64` native code (~175MB vs ~65MB), and this APK ships inside the server
-image. The build fails if the APK ever contains other ABIs. Side-loading has no
+**arm64-v8a only.** Built with `--split-per-abi --target-platform android-arm64`,
+since all target devices are 64-bit ARM and this APK ships inside the server
+image. Both flags are needed: `--target-platform` only strips Flutter's own
+engine and AOT libraries, while Gradle still packages every plugin's `.so` for
+all ABIs (175MB universal -> 98MB, still three architectures). `--split-per-abi`
+is what restricts the packaged native libs, and it renames the output to
+`app-arm64-v8a-release.apk`. The build fails if the APK ever contains other
+ABIs. Side-loading has no
 Play-Store-style split delivery, so if a 32-bit or x86 device ever needs to be
 supported, drop the flag and accept the universal size.
 
