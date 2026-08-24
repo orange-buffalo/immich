@@ -357,6 +357,41 @@ gating from `git log -p` on this commit. After a bump, re-run
 permission model (there are long-standing feature requests for it); if that
 lands, drop this change in favour of theirs.
 
+### 9. Test harness fixes — **modified**
+
+Small changes needed to actually run the tests behind entry 8:
+
+- `server/test/medium.factory.ts` — `TrashRepository` added to
+  `newRealRepository`. It was simply missing, so any medium test using
+  `TrashService` threw "Unable to create repository instance".
+- `server/test/medium/globalSetup.ts` — use `postgresContainer.getHost()`
+  instead of a hardcoded `localhost`. Testcontainers already resolves the right
+  host from `DOCKER_HOST` / `TESTCONTAINERS_HOST_OVERRIDE`; hardcoding
+  `localhost` only works when the docker daemon is on the same host as the test
+  process.
+
+**Conflict risk on rebase: LOW** (both are one-liners in test-only files).
+
+**Running the suites against a remote docker daemon** (e.g. `DOCKER_HOST` set to
+a rootless daemon on another host, which is how the dev sandbox is set up):
+
+```bash
+# medium — works as-is with the globalSetup fix above
+pnpm --filter immich test:medium run
+
+# e2e — published ports live on the daemon host, not on localhost
+cd e2e
+docker compose up -d          # needs e2e/test-assets checked out (git submodule)
+VITEST_DISABLE_DOCKER_SETUP=true \
+  PLAYWRIGHT_HOST=<daemon-host> PLAYWRIGHT_DB_HOST=<daemon-host> \
+  pnpm exec vitest run
+```
+
+Two caveats in that setup, neither fixable from this repo: the `./test-assets`
+bind mount cannot be resolved by a remote daemon (so `library.e2e-spec.ts` and
+the three offline-asset cases in `trash.e2e-spec.ts` cannot pass), and the
+`cli/*` specs need `packages/cli` built.
+
 ## Deliberately NOT changed
 
 - **Machine learning image.** We do not modify `machine-learning/`, so we do not

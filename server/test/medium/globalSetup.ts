@@ -36,7 +36,9 @@ const globalSetup = async () => {
     .start();
 
   const postgresPort = postgresContainer.getMappedPort(5432);
-  const postgresUrl = `postgres://postgres:postgres@localhost:${postgresPort}/${templateName}`;
+  // fork-only: testcontainers already knows the right host (it honours DOCKER_HOST and
+  // TESTCONTAINERS_HOST_OVERRIDE), whereas hardcoding localhost breaks against a remote daemon
+  const postgresUrl = `postgres://postgres:postgres@${postgresContainer.getHost()}:${postgresPort}/${templateName}`;
 
   process.env.IMMICH_TEST_POSTGRES_URL = postgresUrl;
 
