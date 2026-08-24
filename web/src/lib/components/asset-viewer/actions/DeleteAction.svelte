@@ -18,15 +18,17 @@
     onAction: OnAction;
     preAction: PreAction;
     onUndoDelete?: OnUndoDelete;
+    /** Permanently deleting bypasses the owner's trash, so partners are limited to trashing. */
+    allowForce?: boolean;
   }
 
-  let { asset, onAction, preAction, onUndoDelete = undefined }: Props = $props();
+  let { asset, onAction, preAction, onUndoDelete = undefined, allowForce = true }: Props = $props();
 
   const forceDefault = $derived(asset.isTrashed || !featureFlagsManager.value.trash);
 
   const trashOrDelete = async (forceRequest?: boolean) => {
     const timelineAsset = toTimelineAsset(asset);
-    const force = forceDefault || forceRequest;
+    const force = allowForce && (forceDefault || forceRequest);
 
     if (force) {
       if ($showDeleteModal) {

@@ -6,6 +6,7 @@ import { mapUser } from 'src/dtos/user.dto';
 import { Permission } from 'src/enum';
 import { PartnerDirection, PartnerIds } from 'src/repositories/partner.repository';
 import { BaseService } from 'src/services/base.service';
+import { revokePartnerGrants } from 'src/utils/partner-permissions';
 
 @Injectable()
 export class PartnerService extends BaseService {
@@ -28,6 +29,8 @@ export class PartnerService extends BaseService {
     }
 
     await this.partnerRepository.remove(partnerId);
+    // fork-only: drop any delete grant so recreating the partnership does not silently restore it
+    await revokePartnerGrants(this.systemMetadataRepository, partnerId);
   }
 
   async search(auth: AuthDto, { direction }: PartnerSearchDto): Promise<PartnerResponseDto[]> {

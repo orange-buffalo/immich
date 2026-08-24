@@ -383,6 +383,11 @@
               <ActionMenuItem action={Actions.RefreshMetadataJob} />
               <ActionMenuItem action={Actions.TranscodeVideoJob} />
             </ButtonContextMenu>
+          {:else if assetMultiSelectManager.isAllDeletable}
+            <ButtonContextMenu icon={mdiDotsVertical} title={$t('menu')}>
+              <DownloadAction menuItem />
+              <DeleteAssets menuItem {onAssetDelete} onUndoDelete={onSearchQueryUpdate} />
+            </ButtonContextMenu>
           {:else}
             <DownloadAction />
           {/if}

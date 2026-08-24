@@ -344,6 +344,8 @@ export enum SystemMetadataKey {
   VersionCheckState = 'version-check-state',
   License = 'license',
   IntegrityChecksumCheckpoint = 'integrity-checksum-checkpoint',
+  // fork-only, see FORK.md
+  PartnerPermissions = 'fork:partner-permissions',
 }
 
 export enum UserMetadataKey {

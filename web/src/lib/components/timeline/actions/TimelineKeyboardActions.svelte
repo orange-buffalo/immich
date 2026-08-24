@@ -35,7 +35,8 @@
 
   const trashOrDelete = async (forceRequested?: boolean) => {
     const force = forceRequested || !featureFlagsManager.value.trash;
-    const selectedAssets = assetInteraction.assets;
+    // permanently deleting is never shared with partners, so a forced delete only covers own assets
+    const selectedAssets = force ? assetInteraction.permanentlyDeletableAssets : assetInteraction.deletableAssets;
 
     if ($showDeleteModal && force) {
       const confirmed = await modalManager.show(AssetDeleteConfirmModal, { size: selectedAssets.length });

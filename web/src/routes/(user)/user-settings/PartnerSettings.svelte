@@ -1,7 +1,9 @@
 <script lang="ts">
   import SettingSwitch from '$lib/components/shared-components/settings/SettingSwitch.svelte';
   import UserAvatar from '$lib/components/shared-components/UserAvatar.svelte';
+  import { partnerManager } from '$lib/managers/partner-manager.svelte';
   import PartnerSelectionModal from '$lib/modals/PartnerSelectionModal.svelte';
+  import { setPartnerDeletePermission } from '$lib/services/partner-permission.service';
   import { handleError } from '$lib/utils/handle-error';
   import {
     createPartner,
@@ -37,6 +39,9 @@
       getPartners({ direction: PartnerDirection.SharedBy }),
       getPartners({ direction: PartnerDirection.SharedWith }),
     ]);
+
+    // fork-only: the per-partner delete grants drive the delete controls across the app
+    await partnerManager.refresh();
 
     for (const candidate of sharedBy) {
       partners = [
@@ -106,6 +111,14 @@
     }
   };
 
+  const handleAllowDeleteChanged = async (partner: PartnerSharing, allowDelete: boolean) => {
+    try {
+      partnerManager.setPermissions(await setPartnerDeletePermission(partner.user.id, allowDelete));
+    } catch (error) {
+      handleError(error, $t('errors.unable_to_update_partner_permission'));
+    }
+  };
+
   const handleShowOnTimelineChanged = async (partner: PartnerSharing, inTimeline: boolean) => {
     try {
       await updatePartner({ id: partner.user.id, partnerUpdateDto: { inTimeline } });
@@ -167,6 +180,15 @@
                 {$t('partner_can_access_location')}
               </li>
             </ul>
+
+            <div class="mt-4">
+              <SettingSwitch
+                title={$t('partner_can_delete_assets', { values: { partner: partner.user.name } })}
+                subtitle={$t('partner_can_delete_assets_description', { values: { partner: partner.user.name } })}
+                checked={partnerManager.hasGrantedDeleteTo(partner.user.id)}
+                onToggle={(isChecked) => handleAllowDeleteChanged(partner, isChecked)}
+              />
+            </div>
           {/if}
 
           <!-- this user is sharing assets with me -->

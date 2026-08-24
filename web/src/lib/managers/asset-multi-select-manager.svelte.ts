@@ -2,6 +2,7 @@ import { AssetVisibility } from '@immich/sdk';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { authManager } from '$lib/managers/auth-manager.svelte';
 import { eventManager } from '$lib/managers/event-manager.svelte';
+import { partnerManager } from '$lib/managers/partner-manager.svelte';
 import type { TimelineAsset } from '$lib/managers/timeline-manager/types';
 
 export type AssetMultiSelectOptions = {
@@ -24,12 +25,19 @@ export class AssetMultiSelectManager {
     authManager.authenticated ? this.assets.filter((asset) => asset.ownerId === authManager.user.id) : this.assets,
   );
 
+  /** Own assets plus assets shared by a partner, both of which the user is allowed to trash. */
+  deletableAssets = $derived(this.assets.filter((asset) => partnerManager.canDelete(asset)));
+
+  /** Only own assets — permanently deleting is never shared with partners. */
+  permanentlyDeletableAssets = $derived(this.assets.filter((asset) => partnerManager.canPermanentlyDelete(asset)));
+
   isAllTrashed = $derived(this.assets.every((asset) => asset.isTrashed));
   isAllArchived = $derived(this.assets.every((asset) => asset.visibility === AssetVisibility.Archive));
   isAllFavorite = $derived(this.assets.every((asset) => asset.isFavorite));
   isAllUserOwned = $derived(
     authManager.authenticated && this.assets.every((asset) => asset.ownerId === authManager.user.id),
   );
+  isAllDeletable = $derived(this.assets.length > 0 && this.assets.every((asset) => partnerManager.canDelete(asset)));
 
   #unsubscribe?: () => void;
 

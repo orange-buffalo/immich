@@ -187,6 +187,176 @@ This file.
 
 **Conflict risk on rebase:** none (new file).
 
+### 8. Partners can trash each other's assets — **modified** (server, web, mobile)
+
+Upstream partner sharing is read-only: `Permission.AssetDelete` resolves to
+owner-only access, and both clients hide their delete controls for assets they
+do not own. This fork lets partners trash and restore each other's photos with
+the same flow they use for their own.
+
+The trashed asset lands in the **owner's** trash, not the actor's, so the owner
+keeps the usual restore/retention window.
+
+**Delete is opt-in per partner, and one-directional.** Sharing alone grants
+nothing; the *sharer* has to turn on "Allow X to delete" (web: user settings →
+partner sharing, mobile: the partner list). `A` granting `B` lets `B` delete
+`A`'s assets, and the reverse needs `B` to share with and grant `A` separately.
+
+**Permanent deletion is explicitly excluded.** `Permission.AssetDelete` also
+covers `{ force: true }`, which bypasses the owner's trash entirely, so
+`AssetService.deleteAll` re-checks owner access whenever `force` is set (and
+`DuplicateService` does the same on the path where a disabled trash feature
+makes its deletes permanent). Both clients hide the permanent-delete control for
+partner assets, which also means **partners get no delete control at all when
+the trash feature is disabled server-wide** — there would be nothing safe to
+offer.
+
+**Storage, and why not a migration.** The grant needs somewhere to live, and the obvious spot — a column on the
+`partner` table — **would permanently break going back to upstream on the same
+database**. Immich runs kysely's `Migrator` with a `FileMigrationProvider` over
+`server/src/schema/migrations` plus a `kysely_migrations` table; if that table
+holds a row whose file is not in upstream's folder, kysely reports corrupted
+migrations and `runMigrations` throws, so upstream's server refuses to start
+until you delete the row and the column by hand.
+
+`user_metadata` is also unsuitable: no migration is needed (`key` is
+`character varying`), but it is streamed to clients as
+`SyncEntityType.UserMetadataV1`, and mobile's `sync_stream.repository.dart` maps
+the key through an exhaustive `switch` with no default — an unknown key breaks
+sync on the *upstream* app.
+
+So grants live in **`system_metadata`** under the key
+`fork:partner-permissions`. That table's `key` is `character varying`, it is
+never synced, and it is only ever read by exact key through
+`SystemMetadataRepository.get(key)`. Upstream never looks at our row, there is
+no migration to undo, and switching back leaves exactly one orphan row that can
+be dropped or ignored. Helpers live in `src/utils/partner-permissions.ts`
+(added).
+
+Known limitation: the grant list is a single JSONB row updated read-modify-write,
+so two people toggling permissions at the same instant can lose one update.
+Re-toggling fixes it; not worth a lock at this scale.
+
+Server:
+
+- `src/utils/access.ts` — `Permission.AssetDelete` is now owner ∪ partner
+  instead of owner-only. This covers `DELETE /assets` and
+  `POST /trash/restore/assets`, both of which authorize on that permission.
+- `src/services/asset.service.ts`, `src/services/duplicate.service.ts` — an
+  extra owner check on the `force` (permanent delete) paths, see above. A
+  dedicated `Permission` value would have been cleaner but every enum member is
+  API-visible through `ApiKeyCreateDto`, and we do not want to touch the
+  OpenAPI surface.
+- `src/repositories/access.repository.ts` — a new
+  `AssetAccess.checkPartnerDeleteAccess`. Upstream's `checkPartnerAccess` is
+  left untouched: the new one additionally requires a grant, and includes
+  already-trashed assets so a partner can undo a delete they just made.
+- `src/services/partner-permission.service.ts`,
+  `src/controllers/partner-permission.controller.ts` — added, exposing
+  `GET /partner-permissions` and `PUT /partner-permissions/:id`. Upstream's
+  `PUT /partners/:id` is the *recipient* adjusting their own view
+  (`inTimeline`), so it is the wrong shape for a permission the sharer grants.
+- `src/services/partner.service.ts` — `remove()` drops the grant, so recreating
+  a partnership does not silently restore it.
+- `src/enum.ts`, `src/types.ts` — one line each for the new
+  `SystemMetadataKey`. `SystemMetadataKey` does not appear in the OpenAPI
+  document, so this is invisible to clients.
+- `src/controllers/index.ts`, `src/services/index.ts` — one registration line
+  each.
+- `src/queries/access.repository.sql` — updated by hand (documentation only,
+  nothing reads it at runtime and no CI job regenerates it).
+- `test/medium/specs/services/partner-asset-delete.spec.ts` and
+  `e2e/src/specs/server/api/partner-asset-delete.e2e-spec.ts` — added.
+
+**Endpoint security.** Both routes go through the standard `@Authenticated`
+guard, so: unauthenticated requests get 401; shared-link sessions get 403
+(neither route opts into `sharedLink`); and API keys must carry
+`partner.read` / `partner.update`. There is no admin bypass and no way to act on
+another user's behalf — `setDeletePermission` takes `sharedById` from
+`auth.user.id` only, and refuses unless a `partner` row already exists for that
+exact pair. `:id` is validated as a v4 UUID by the global `ZodValidationPipe`,
+which is what makes the `"<sharedById>:<sharedWithId>"` grant key unforgeable.
+`GET` resolves grants against live partnerships instead of reading the grant
+list directly, so a grant orphaned by the `ON DELETE CASCADE` from a deleted
+user is never reported. Session cookies are `SameSite=Lax`, so the
+state-changing `PUT` cannot be driven cross-site.
+
+Note that an API key scoped to `partner.update` can now grant delete rights over
+its owner's library — narrower than the `asset.delete` such a key would need to
+do the damage itself, but a step up from what `partner.update` meant upstream.
+
+Partners still cannot touch Archived or Locked-folder assets: the access query
+keeps upstream's `visibility IN (timeline, hidden)` filter.
+
+**The fork endpoint is marked `@ApiExcludeController`,** which keeps it out of
+the generated OpenAPI document. Verified: after this change,
+`node ./dist/bin/sync-open-api.js` leaves
+`open-api/immich-openapi-specs.json` byte-identical, so `packages/sdk` and
+`mobile/openapi` need no regeneration and can never conflict on a bump. The
+price is that both clients call the two routes by hand instead of through a
+generated client — a deliberate trade, since `generate-dart-sdk.sh` does
+`rm -rf mobile/openapi` and regenerating that tree on every upstream bump would
+be far worse.
+
+Web:
+
+- `src/lib/services/partner-permission.service.ts` — added, a hand-written
+  `fetch` wrapper for the two fork routes.
+- `src/lib/managers/partner-manager.svelte.ts` — added. Holds the delete grants,
+  loaded in `utils/server.ts` `init()` and refreshed on `AuthUserLoaded` and
+  from `PartnerSettings.svelte`.
+- `PartnerSettings.svelte` — the "Allow X to delete" switch, on the
+  *I share with them* side of each partner card.
+- `asset-multi-select-manager.svelte.ts` — added `deletableAssets` /
+  `isAllDeletable` alongside the existing `ownedAssets` / `isAllUserOwned`.
+  `DeleteAssetsAction.svelte` switched to `deletableAssets`.
+- `AssetViewerNavBar.svelte` — the delete button uses `partnerManager.canDelete`
+  instead of `isOwner`, and passes `allowForce` so `Shift+Delete` cannot force a
+  permanent delete of a partner's asset.
+- `DeleteAssetsAction.svelte` / `TimelineKeyboardActions.svelte` — a forced
+  delete falls back to `permanentlyDeletableAssets` (own assets only).
+- The partner timeline gained a delete button; the photos / recently-added /
+  map / search control bars gained an `{:else if …isAllDeletable}` branch with a
+  Download + Delete menu, for selections that are not all owned.
+
+Mobile:
+
+- `repositories/partner_permission_api.repository.dart` — added. Calls the two
+  fork routes through `ApiClient.invokeAPI` (reached via
+  `apiService.partnersApi.apiClient`), which reuses the configured base URL and
+  auth without touching `mobile/openapi`.
+- `providers/user.provider.dart` — added `partnerPermissionsProvider` and
+  `deletableOwnerIdsProvider`.
+- `presentation/widgets/people/partner_allow_delete_switch.widget.dart` — added,
+  rendered under each row of `pages/library/partner/partner.page.dart`. Built
+  from a `Row` rather than a `SwitchListTile` on purpose: upstream's
+  `partner_page_test.dart` counts `ListTile`s.
+- `i18n/en.json` — two new keys. `mobile/lib/generated/` is gitignored and the
+  fork's Android workflow already runs `mise //mobile:codegen:translation`, so
+  the typed `context.t.partner_can_delete_assets(...)` accessor is generated at
+  build time.
+- `action.provider.dart` — `trash`, `restoreTrash` and
+  `trashRemoteAndDeleteLocal` use `_getDeletableRemoteIdsForSource` instead of
+  `_getOwnedRemoteIdsForSource`; `deleteRemoteAndLocal` (permanent) stays on the
+  owned list. Every other action stays owner-only, and the filtering still
+  matters: the server rejects the whole request if *any* id is unauthorized, so
+  assets from shared albums must keep being dropped.
+- `action_button.utils.dart` — `ActionButtonContext` gained an optional
+  `canDelete` that defaults to `isOwner`; the trash/delete button types gate on
+  it, while `deletePermanent` stays on `isOwner`.
+- `bottom_bar.widget.dart`, `viewer_kebab_menu.widget.dart` pass it;
+  `partner_detail_bottom_sheet.widget.dart` gained a trash button.
+
+**Conflict risk on rebase: MEDIUM-HIGH.** This is the one change that edits
+active upstream code across all three trees, though most of the volume sits in
+added files. The load-bearing parts are `src/utils/access.ts` and
+`src/repositories/access.repository.ts` — if the clients conflict badly, the
+fastest recovery is to re-apply the server change and re-derive the client
+gating from `git log -p` on this commit. After a bump, re-run
+`mise //mobile:codegen:translation` so the two new i18n keys exist. Watch for upstream adding its own partner
+permission model (there are long-standing feature requests for it); if that
+lands, drop this change in favour of theirs.
+
 ## Deliberately NOT changed
 
 - **Machine learning image.** We do not modify `machine-learning/`, so we do not
@@ -199,6 +369,12 @@ This file.
   patching it would mean editing an upstream file for no functional gain.
 - **Media location.** Deployment mounts photos at `/data`, which is upstream's
   default since `v1.137.0`. No patch needed.
+- **Live websocket notification to the *owner* when a partner trashes their
+  asset.** `on_asset_trash` is emitted to the acting user only, so an owner with
+  the web app already open sees the photo disappear on the next refresh rather
+  than instantly. Mobile is unaffected — the sync stream carries the change.
+  Widening this would mean changing the shape of the `AssetTrashAll` event,
+  which upstream also uses for archive/duplicate/integrity flows.
 - **System config via `IMMICH_CONFIG_FILE`.** Would make settings declarative,
   but it makes the *entire* admin settings UI read-only
   (`system-config.service.ts`: "Cannot update configuration while

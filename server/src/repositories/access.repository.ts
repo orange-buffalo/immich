@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Kysely, NotNull, sql } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { ChunkedSet, DummyValue, GenerateSql } from 'src/decorators';
-import { AlbumUserRole, AssetVisibility } from 'src/enum';
+import { AlbumUserRole, AssetVisibility, SystemMetadataKey } from 'src/enum';
 import { DB } from 'src/schema';
 import { asUuid } from 'src/utils/database';
 
@@ -222,6 +222,48 @@ class AssetAccess {
       )
 
       .where('asset.id', 'in', [...assetIds])
+      .execute()
+      .then((assets) => new Set(assets.map((asset) => asset.id)));
+  }
+
+  /**
+   * Fork-only, see FORK.md. Like {@link checkPartnerAccess}, but limited to partners that have been
+   * granted delete permission, and including already-trashed assets so the recipient can undo a
+   * delete they just made.
+   */
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
+  @ChunkedSet({ paramIndex: 1 })
+  async checkPartnerDeleteAccess(userId: string, assetIds: Set<string>) {
+    if (assetIds.size === 0) {
+      return new Set<string>();
+    }
+
+    return this.db
+      .selectFrom('partner')
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('asset', 'asset.ownerId', 'sharedBy.id')
+      .select('asset.id')
+      .where('partner.sharedWithId', '=', userId)
+      .where((eb) =>
+        eb.or([
+          eb('asset.visibility', '=', sql.lit(AssetVisibility.Timeline)),
+          eb('asset.visibility', '=', sql.lit(AssetVisibility.Hidden)),
+        ]),
+      )
+      .where('asset.id', 'in', [...assetIds])
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('system_metadata')
+            .select(sql.lit(1).as('granted'))
+            .where('key', '=', SystemMetadataKey.PartnerPermissions)
+            .where(
+              sql<boolean>`jsonb_exists("system_metadata"."value" -> 'allowDelete', "partner"."sharedById" || ':' || "partner"."sharedWithId")`,
+            ),
+        ),
+      )
       .execute()
       .then((assets) => new Set(assets.map((asset) => asset.id)));
   }

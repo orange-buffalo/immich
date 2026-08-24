@@ -19,12 +19,14 @@
   let { onAssetDelete, onUndoDelete = undefined, menuItem = false, force: forceRequested }: Props = $props();
 
   const force = $derived(forceRequested || !featureFlagsManager.value.trash);
+  // permanently deleting is never shared with partners, so a forced delete only ever covers own assets
+  const assets = $derived(
+    force ? assetMultiSelectManager.permanentlyDeletableAssets : assetMultiSelectManager.deletableAssets,
+  );
   let label = $derived(force ? $t('permanently_delete') : $t('delete'));
   let loading = $state(false);
 
   const onAction = async () => {
-    const assets = assetMultiSelectManager.ownedAssets;
-
     if (force && $showDeleteModal) {
       const confirmed = await modalManager.show(AssetDeleteConfirmModal, { size: assets.length });
       if (!confirmed) {
@@ -39,24 +41,26 @@
   };
 </script>
 
-{#if menuItem}
-  <MenuOption text={label} icon={mdiDeleteOutline} onClick={onAction} />
-{:else if loading}
-  <IconButton
-    shape="round"
-    color="secondary"
-    variant="ghost"
-    aria-label={$t('loading')}
-    icon={mdiTimerSand}
-    onclick={() => {}}
-  />
-{:else}
-  <IconButton
-    shape="round"
-    color="secondary"
-    variant="ghost"
-    aria-label={label}
-    icon={mdiDeleteForeverOutline}
-    onclick={onAction}
-  />
+{#if assets.length > 0}
+  {#if menuItem}
+    <MenuOption text={label} icon={mdiDeleteOutline} onClick={onAction} />
+  {:else if loading}
+    <IconButton
+      shape="round"
+      color="secondary"
+      variant="ghost"
+      aria-label={$t('loading')}
+      icon={mdiTimerSand}
+      onclick={() => {}}
+    />
+  {:else}
+    <IconButton
+      shape="round"
+      color="secondary"
+      variant="ghost"
+      aria-label={label}
+      icon={mdiDeleteForeverOutline}
+      onclick={onAction}
+    />
+  {/if}
 {/if}

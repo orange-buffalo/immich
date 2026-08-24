@@ -145,7 +145,11 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
     }
 
     case Permission.AssetDelete: {
-      return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
+      const isOwner = await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
+      // fork-only: partners that have been granted delete permission can trash/restore each
+      // other's assets, see FORK.md
+      const isPartner = await access.asset.checkPartnerDeleteAccess(auth.user.id, setDifference(ids, isOwner));
+      return setUnion(isOwner, isPartner);
     }
 
     case Permission.AssetCopy: {

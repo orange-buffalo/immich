@@ -380,6 +380,22 @@ export class AssetService extends BaseService {
     const { ids, force } = dto;
 
     await this.requireAccess({ auth, permission: Permission.AssetDelete, ids });
+
+    if (force) {
+      // trashing is shared with partners, but permanently deleting bypasses the owner's trash, so
+      // it stays owner-only
+      const idSet = new Set(ids);
+      const ownedIds = await this.accessRepository.asset.checkOwnerAccess(
+        auth.user.id,
+        idSet,
+        auth.session?.hasElevatedPermission,
+      );
+
+      if (ownedIds.size !== idSet.size) {
+        throw new BadRequestException(`Not found or no ${Permission.AssetDelete} access`);
+      }
+    }
+
     await this.assetRepository.updateAll(ids, {
       deletedAt: new Date(),
       status: force ? AssetStatus.Deleted : AssetStatus.Trashed,

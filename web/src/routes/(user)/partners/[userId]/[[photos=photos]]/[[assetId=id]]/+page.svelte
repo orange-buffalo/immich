@@ -2,10 +2,12 @@
   import { goto } from '$app/navigation';
   import ControlAppBar from '$lib/components/shared-components/ControlAppBar.svelte';
   import CreateSharedLink from '$lib/components/timeline/actions/CreateSharedLinkAction.svelte';
+  import DeleteAssets from '$lib/components/timeline/actions/DeleteAssetsAction.svelte';
   import DownloadAction from '$lib/components/timeline/actions/DownloadAction.svelte';
   import AssetSelectControlBar from '$lib/components/timeline/AssetSelectControlBar.svelte';
   import Timeline from '$lib/components/timeline/Timeline.svelte';
   import { assetMultiSelectManager } from '$lib/managers/asset-multi-select-manager.svelte';
+  import type { TimelineManager } from '$lib/managers/timeline-manager/timeline-manager.svelte';
   import { Route } from '$lib/route';
   import { getAssetBulkActions } from '$lib/services/asset.service';
   import { AssetVisibility } from '@immich/sdk';
@@ -19,6 +21,8 @@
   }
 
   let { data }: Props = $props();
+
+  let timelineManager = $state<TimelineManager>() as TimelineManager;
 
   const options = $derived({
     userId: data.partner.id,
@@ -37,7 +41,13 @@
 </script>
 
 <main class="relative h-dvh overflow-hidden px-2 pt-(--navbar-height) max-md:pt-(--navbar-height-md) md:px-6">
-  <Timeline enableRouting={true} {options} assetInteraction={assetMultiSelectManager} onEscape={handleEscape} />
+  <Timeline
+    enableRouting={true}
+    bind:timelineManager
+    {options}
+    assetInteraction={assetMultiSelectManager}
+    onEscape={handleEscape}
+  />
 </main>
 
 {#if assetMultiSelectManager.selectionActive}
@@ -47,6 +57,10 @@
     <CreateSharedLink />
     <ActionButton action={Actions.AddToAlbum} />
     <DownloadAction />
+    <DeleteAssets
+      onAssetDelete={(assetIds) => timelineManager.removeAssets(assetIds)}
+      onUndoDelete={(assets) => timelineManager.upsertAssets(assets)}
+    />
   </AssetSelectControlBar>
 {:else}
   <ControlAppBar backIcon={mdiArrowLeft} onClose={() => goto(Route.sharing())}>

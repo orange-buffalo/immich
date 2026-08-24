@@ -37,6 +37,10 @@ import 'package:immich_mobile/routing/router.dart';
 class ActionButtonContext {
   final BaseAsset asset;
   final bool isOwner;
+
+  /// Whether the current user may trash the asset. Partners may trash each other's assets, so
+  /// this is wider than [isOwner]. Defaults to [isOwner] when not given.
+  final bool? _canDelete;
   final bool isArchived;
   final bool isTrashEnabled;
   final bool isInLockedView;
@@ -58,10 +62,13 @@ class ActionButtonContext {
     required this.currentAlbum,
     required this.advancedTroubleshooting,
     required this.source,
+    bool? canDelete,
     this.isCasting = false,
     this.timelineOrigin = TimelineOrigin.main,
     this.selectedCount = 1,
-  });
+  }) : _canDelete = canDelete;
+
+  bool get canDelete => _canDelete ?? isOwner;
 }
 
 enum ActionButtonType {
@@ -113,22 +120,23 @@ enum ActionButtonType {
             context.asset.hasRemote && //
             !context.asset.hasLocal,
       ActionButtonType.trash =>
-        context.isOwner && //
+        context.canDelete && //
             !context.isInLockedView && //
             context.asset.hasRemote && //
             context.isTrashEnabled && //
             context.timelineOrigin != TimelineOrigin.trash,
       ActionButtonType.restoreTrash =>
-        context.isOwner && //
+        context.canDelete && //
             !context.isInLockedView && //
             context.asset.hasRemote && //
             context.timelineOrigin == TimelineOrigin.trash,
+      // permanently deleting bypasses the owner's trash, so unlike trashing it stays owner-only
       ActionButtonType.deletePermanent =>
         context.isOwner && //
             context.asset.hasRemote && //
             (!context.isTrashEnabled || context.timelineOrigin == TimelineOrigin.trash || context.isInLockedView),
       ActionButtonType.delete =>
-        context.isOwner && //
+        context.canDelete && //
             !context.isInLockedView && //
             context.asset.hasRemote,
       ActionButtonType.moveToLockFolder =>

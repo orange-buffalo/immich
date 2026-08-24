@@ -5,9 +5,11 @@ import 'package:immich_mobile/constants/enums.dart';
 import 'package:immich_mobile/domain/models/album/album.model.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/download_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/share_action_button.widget.dart';
+import 'package:immich_mobile/presentation/widgets/action_buttons/trash_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/album/album_selector.widget.dart';
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/base_bottom_sheet.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/action.provider.dart';
+import 'package:immich_mobile/providers/server_info.provider.dart';
 import 'package:immich_mobile/widgets/common/immich_toast.dart';
 
 class PartnerDetailBottomSheet extends ConsumerStatefulWidget {
@@ -34,6 +36,8 @@ class _PartnerDetailBottomSheetState extends ConsumerState<PartnerDetailBottomSh
 
   @override
   Widget build(BuildContext context) {
+    final isTrashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
+
     Future<void> addToAlbum(RemoteAlbum album) async {
       final result = await ref.read(actionProvider.notifier).addToAlbum(ActionSource.timeline, album);
 
@@ -63,9 +67,12 @@ class _PartnerDetailBottomSheetState extends ConsumerState<PartnerDetailBottomSh
       initialChildSize: 0.25,
       maxChildSize: 0.85,
       shouldCloseOnMinExtent: false,
-      actions: const [
-        ShareActionButton(source: ActionSource.timeline),
-        DownloadActionButton(source: ActionSource.timeline),
+      actions: [
+        const ShareActionButton(source: ActionSource.timeline),
+        const DownloadActionButton(source: ActionSource.timeline),
+        // partners may trash each other's assets, but never delete them permanently, so there is
+        // nothing to offer when the trash feature is off
+        if (isTrashEnabled) const TrashActionButton(source: ActionSource.timeline),
       ],
       slivers: [
         const AddToAlbumHeader(),

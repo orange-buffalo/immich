@@ -35,6 +35,8 @@ class ViewerBottomBar extends ConsumerWidget {
     final isReadonlyModeEnabled = ref.watch(readonlyModeProvider);
     final user = ref.watch(currentUserProvider);
     final isOwner = asset is RemoteAsset && asset.ownerId == user?.id;
+    // partners may trash each other's assets, so deleting is not restricted to the owner
+    final canDelete = asset is RemoteAsset && ref.watch(deletableOwnerIdsProvider).contains(asset.ownerId);
     final showingDetails = ref.watch(assetViewerProvider.select((s) => s.showingDetails));
     final isInLockedView = ref.watch(inLockedViewProvider);
     final serverInfo = ref.watch(serverInfoProvider);
@@ -56,13 +58,14 @@ class ViewerBottomBar extends ConsumerWidget {
             const EditImageActionButton(),
           if (asset.hasRemote) AddActionButton(originalTheme: originalTheme),
         ],
-        if (isOwner) ...[
+        if (canDelete) ...[
           if (asset.isLocalOnly)
             const DeleteLocalActionButton(source: ActionSource.viewer)
-          else if (asset.isTrashed)
-            const DeletePermanentActionButton(source: ActionSource.viewer, useShortLabel: true)
-          else
-            const DeleteActionButton(source: ActionSource.viewer, showConfirmation: true),
+          else if (!asset.isTrashed)
+            const DeleteActionButton(source: ActionSource.viewer, showConfirmation: true)
+          // permanently deleting bypasses the owner's trash, so it stays owner-only
+          else if (isOwner)
+            const DeletePermanentActionButton(source: ActionSource.viewer, useShortLabel: true),
         ],
       ],
     ];

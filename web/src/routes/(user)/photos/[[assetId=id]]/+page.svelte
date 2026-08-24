@@ -164,6 +164,15 @@
         <ActionMenuItem action={Actions.RefreshMetadataJob} />
         <ActionMenuItem action={Actions.TranscodeVideoJob} />
       </ButtonContextMenu>
+    {:else if assetMultiSelectManager.isAllDeletable}
+      <ButtonContextMenu icon={mdiDotsVertical} title={$t('menu')}>
+        <DownloadAction menuItem />
+        <DeleteAssets
+          menuItem
+          onAssetDelete={(assetIds) => timelineManager.removeAssets(assetIds)}
+          onUndoDelete={(assets) => timelineManager.upsertAssets(assets)}
+        />
+      </ButtonContextMenu>
     {:else}
       <DownloadAction />
     {/if}

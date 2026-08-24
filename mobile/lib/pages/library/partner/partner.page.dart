@@ -5,6 +5,7 @@ import 'package:immich_mobile/domain/models/user.model.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/presentation/actions/action.widget.dart';
 import 'package:immich_mobile/presentation/actions/partner.action.dart';
+import 'package:immich_mobile/presentation/widgets/people/partner_allow_delete_switch.widget.dart';
 import 'package:immich_mobile/presentation/widgets/people/partner_user_avatar.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/user.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
@@ -84,13 +85,20 @@ class PartnerSharedByList extends StatelessWidget {
       itemCount: partners.length,
       itemBuilder: (_, index) {
         final partner = partners[index];
-        return ListTile(
-          leading: PartnerUserAvatar(userId: partner.id, name: partner.name),
-          title: Text(partner.name),
-          subtitle: Text(partner.email),
-          trailing: ActionIconButtonWidget(
-            action: PartnerRemoveAction(sharedWithId: partner.id, partnerName: partner.name),
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              leading: PartnerUserAvatar(userId: partner.id, name: partner.name),
+              title: Text(partner.name),
+              subtitle: Text(partner.email),
+              trailing: ActionIconButtonWidget(
+                action: PartnerRemoveAction(sharedWithId: partner.id, partnerName: partner.name),
+              ),
+            ),
+            // fork-only: per-partner delete permission, see FORK.md
+            PartnerAllowDeleteSwitch(partner: partner),
+          ],
         );
       },
     );

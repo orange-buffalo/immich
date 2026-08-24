@@ -124,6 +124,34 @@ where
   )
   and "asset"."id" in ($2)
 
+-- AccessRepository.asset.checkPartnerDeleteAccess
+select
+  "asset"."id"
+from
+  "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "asset" on "asset"."ownerId" = "sharedBy"."id"
+where
+  "partner"."sharedWithId" = $1
+  and (
+    "asset"."visibility" = 'timeline'
+    or "asset"."visibility" = 'hidden'
+  )
+  and "asset"."id" in ($2)
+  and exists (
+    select
+      1 as "granted"
+    from
+      "system_metadata"
+    where
+      "key" = $3
+      and jsonb_exists(
+        "system_metadata"."value" -> 'allowDelete',
+        "partner"."sharedById" || ':' || "partner"."sharedWithId"
+      )
+  )
+
 -- AccessRepository.asset.checkSharedLinkAccess
 select
   "asset"."id" as "assetId",

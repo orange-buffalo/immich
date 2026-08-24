@@ -19,6 +19,7 @@ import 'package:immich_mobile/providers/server_info.provider.dart';
 import 'package:immich_mobile/providers/timeline/multiselect.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/providers/websocket.provider.dart';
+import 'package:immich_mobile/repositories/partner_permission_api.repository.dart';
 import 'package:immich_mobile/routing/router.dart';
 import 'package:immich_mobile/services/action.service.dart';
 import 'package:immich_mobile/services/foreground_upload.service.dart';
@@ -94,6 +95,30 @@ class ActionNotifier extends Notifier<void> {
   List<RemoteAsset> _getOwnedRemoteAssetsForSource(ActionSource source) {
     final ownerId = ref.read(currentUserProvider)?.id;
     return _getIdsForSource<RemoteAsset>(source).ownedAssets(ownerId).toList();
+  }
+
+  /// Own assets plus assets shared by a partner, both of which the current user may trash.
+  Future<List<String>> _getDeletableRemoteIdsForSource(ActionSource source) async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) {
+      return const [];
+    }
+
+    // a failed lookup must not take down the action, so fall back to own assets only
+    PartnerPermissions permissions;
+    try {
+      permissions = await ref.read(partnerPermissionsProvider.future);
+    } catch (error, stack) {
+      _logger.warning('Failed to resolve partner permissions', error, stack);
+      permissions = const PartnerPermissions();
+    }
+
+    final ownerIds = {userId, ...permissions.grantedToMe};
+    return _getAssets(source)
+        .whereType<RemoteAsset>()
+        .where((asset) => ownerIds.contains(asset.ownerId))
+        .toIds()
+        .toList(growable: false);
   }
 
   Iterable<T> _getIdsForSource<T extends BaseAsset>(ActionSource source) {
@@ -205,7 +230,7 @@ class ActionNotifier extends Notifier<void> {
   }
 
   Future<ActionResult> trash(ActionSource source) async {
-    final ids = _getOwnedRemoteIdsForSource(source);
+    final ids = await _getDeletableRemoteIdsForSource(source);
 
     try {
       await _service.trash(ids);
@@ -217,7 +242,7 @@ class ActionNotifier extends Notifier<void> {
   }
 
   Future<ActionResult> restoreTrash(ActionSource source) async {
-    final ids = _getOwnedRemoteIdsForSource(source);
+    final ids = await _getDeletableRemoteIdsForSource(source);
     try {
       await _service.restoreTrash(ids);
       return ActionResult(count: ids.length, success: true);
@@ -248,7 +273,7 @@ class ActionNotifier extends Notifier<void> {
   }
 
   Future<ActionResult> trashRemoteAndDeleteLocal(ActionSource source) async {
-    final ids = _getOwnedRemoteIdsForSource(source);
+    final ids = await _getDeletableRemoteIdsForSource(source);
     final localIds = _getLocalIdsForSource(source);
     try {
       await _service.trashRemoteAndDeleteLocal(ids, localIds);
@@ -260,6 +285,7 @@ class ActionNotifier extends Notifier<void> {
   }
 
   Future<ActionResult> deleteRemoteAndLocal(ActionSource source) async {
+    // permanently deleting bypasses the owner's trash, so unlike trashing it stays owner-only
     final ids = _getOwnedRemoteIdsForSource(source);
     final localIds = _getLocalIdsForSource(source);
     try {

@@ -1,9 +1,10 @@
 import { AssetVisibility } from '@immich/sdk';
 import { AssetMultiSelectManager } from '$lib/managers/asset-multi-select-manager.svelte';
 import { authManager } from '$lib/managers/auth-manager.svelte';
+import { partnerManager } from '$lib/managers/partner-manager.svelte';
 import { timelineAssetFactory } from '@test-data/factories/asset-factory';
 import { preferencesFactory } from '@test-data/factories/preferences-factory';
-import { userAdminFactory } from '@test-data/factories/user-factory';
+import { userAdminFactory, userFactory } from '@test-data/factories/user-factory';
 
 describe('AssetMultiSelectManager', () => {
   let sut: AssetMultiSelectManager;
@@ -43,5 +44,36 @@ describe('AssetMultiSelectManager', () => {
 
     cleanup();
     authManager.reset();
+  });
+
+  it('treats assets shared by a partner as deletable', () => {
+    const user = userAdminFactory.build();
+    const partner = userFactory.build();
+    const stranger = userFactory.build();
+
+    const ownAsset = timelineAssetFactory.build({ ownerId: user.id });
+    const partnerAsset = timelineAssetFactory.build({ ownerId: partner.id });
+    const strangerAsset = timelineAssetFactory.build({ ownerId: stranger.id });
+    sut.selectAssets([ownAsset, partnerAsset, strangerAsset]);
+
+    const cleanup = $effect.root(() => {
+      authManager.setUser(user);
+      authManager.setPreferences(preferencesFactory.build());
+      partnerManager.setPermissions({ grantedByMe: [], grantedToMe: [partner.id] });
+
+      expect(sut.deletableAssets.map(({ id }) => id)).toEqual([ownAsset.id, partnerAsset.id]);
+      expect(sut.isAllDeletable).toBe(false);
+
+      // permanently deleting is never shared with partners
+      expect(sut.permanentlyDeletableAssets.map(({ id }) => id)).toEqual([ownAsset.id]);
+
+      sut.removeAssetFromMultiselectGroup(strangerAsset.id);
+      expect(sut.isAllDeletable).toBe(true);
+      expect(sut.isAllUserOwned).toBe(false);
+    });
+
+    cleanup();
+    authManager.reset();
+    partnerManager.reset();
   });
 });

@@ -17,7 +17,9 @@
   import RemoveFromAlbumAction from '$lib/components/timeline/actions/RemoveFromAlbumAction.svelte';
   import { assetViewerManager } from '$lib/managers/asset-viewer-manager.svelte';
   import { authManager } from '$lib/managers/auth-manager.svelte';
+  import { featureFlagsManager } from '$lib/managers/feature-flags-manager.svelte';
   import { languageManager } from '$lib/managers/language-manager.svelte';
+  import { partnerManager } from '$lib/managers/partner-manager.svelte';
   import { getAlbumAssetActions } from '$lib/services/album.service';
   import { getGlobalActions } from '$lib/services/app.service';
   import { getAssetActions } from '$lib/services/asset.service';
@@ -65,6 +67,11 @@
   }: Props = $props();
 
   const isOwner = $derived(authManager.authenticated && asset.ownerId === authManager.user.id);
+  // partners may trash each other's assets, but only the owner may permanently delete, so the
+  // control is hidden entirely when trashing is not an option
+  const canPermanentlyDelete = $derived(partnerManager.canPermanentlyDelete(asset));
+  const needsForce = $derived(asset.isTrashed || !featureFlagsManager.value.trash);
+  const canDelete = $derived(partnerManager.canDelete(asset) && (canPermanentlyDelete || !needsForce));
   const isAlbumOwner = $derived(authManager.authenticated && album?.albumUsers[0].user.id === authManager.user.id);
   const isLocked = $derived(asset.visibility === AssetVisibility.Locked);
 
@@ -130,8 +137,8 @@
 
     <ActionButton action={Actions.Edit} />
 
-    {#if isOwner}
-      <DeleteAction {asset} {onAction} {preAction} {onUndoDelete} />
+    {#if canDelete}
+      <DeleteAction {asset} {onAction} {preAction} {onUndoDelete} allowForce={canPermanentlyDelete} />
     {/if}
 
     {#if !sharedLink}

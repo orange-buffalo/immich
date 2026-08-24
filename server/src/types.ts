@@ -571,6 +571,8 @@ export interface SystemMetadata extends Record<SystemMetadataKey, Record<string,
   [SystemMetadataKey.VersionCheckState]: VersionCheckMetadata;
   [SystemMetadataKey.MemoriesState]: MemoriesState;
   [SystemMetadataKey.IntegrityChecksumCheckpoint]: { date?: string };
+  // fork-only, see FORK.md; entries are `<sharedById>:<sharedWithId>` pairs
+  [SystemMetadataKey.PartnerPermissions]: { allowDelete: string[] };
 }
 
 export type UserPreferences = {

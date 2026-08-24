@@ -145,7 +145,17 @@ export class DuplicateService extends BaseService {
     }
 
     if (idsToTrash.length > 0) {
-      const ids = await this.checkAccess({ auth, permission: Permission.AssetDelete, ids: idsToTrash });
+      const { trash } = await this.getConfig({ withCache: true });
+      // trashing is shared with partners, but permanently deleting (what happens when the trash
+      // feature is off) bypasses the owner's trash, so it stays owner-only
+      const ids = trash.enabled
+        ? await this.checkAccess({ auth, permission: Permission.AssetDelete, ids: idsToTrash })
+        : await this.accessRepository.asset.checkOwnerAccess(
+            auth.user.id,
+            new Set(idsToTrash),
+            auth.session?.hasElevatedPermission,
+          );
+
       if (ids.size !== idsToTrash.length) {
         return {
           id: duplicateId,

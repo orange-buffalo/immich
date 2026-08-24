@@ -1238,4 +1238,51 @@ void main() {
       expect(nonArchivedWidgets, isNotEmpty);
     });
   });
+
+  group('partner delete permissions', () {
+    ActionButtonContext contextFor({required bool isOwner, bool? canDelete, bool isTrashEnabled = true}) =>
+        ActionButtonContext(
+          asset: createRemoteAsset(),
+          isOwner: isOwner,
+          canDelete: canDelete,
+          isArchived: false,
+          isTrashEnabled: isTrashEnabled,
+          isInLockedView: false,
+          currentAlbum: null,
+          advancedTroubleshooting: false,
+          isStacked: false,
+          source: ActionSource.timeline,
+        );
+
+    test('should fall back to isOwner when canDelete is not given', () {
+      expect(contextFor(isOwner: true).canDelete, isTrue);
+      expect(contextFor(isOwner: false).canDelete, isFalse);
+    });
+
+    test('should show the delete buttons for a partner asset', () {
+      final context = contextFor(isOwner: false, canDelete: true);
+
+      expect(ActionButtonType.trash.shouldShow(context), isTrue);
+      expect(ActionButtonType.delete.shouldShow(context), isTrue);
+      // deleting is allowed, but the other owner-only actions are not
+      expect(ActionButtonType.archive.shouldShow(context), isFalse);
+      expect(ActionButtonType.moveToLockFolder.shouldShow(context), isFalse);
+    });
+
+    test('should hide the delete buttons for an asset the user may not delete', () {
+      final context = contextFor(isOwner: false);
+
+      expect(ActionButtonType.trash.shouldShow(context), isFalse);
+      expect(ActionButtonType.delete.shouldShow(context), isFalse);
+    });
+
+    test('should never offer permanent deletion for a partner asset', () {
+      // with the trash feature off, deleting is permanent, which stays owner-only
+      final partnerContext = contextFor(isOwner: false, canDelete: true, isTrashEnabled: false);
+      expect(ActionButtonType.deletePermanent.shouldShow(partnerContext), isFalse);
+
+      final ownerContext = contextFor(isOwner: true, isTrashEnabled: false);
+      expect(ActionButtonType.deletePermanent.shouldShow(ownerContext), isTrue);
+    });
+  });
 }

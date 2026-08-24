@@ -2,6 +2,7 @@ import { defaults } from '@immich/sdk';
 import { memoize } from 'lodash-es';
 import { authManager } from '$lib/managers/auth-manager.svelte';
 import { featureFlagsManager } from '$lib/managers/feature-flags-manager.svelte';
+import { partnerManager } from '$lib/managers/partner-manager.svelte';
 import { serverConfigManager } from '$lib/managers/server-config-manager.svelte';
 import { initLanguage } from '$lib/utils';
 
@@ -15,6 +16,7 @@ async function _init(fetch: Fetch) {
   await initLanguage();
   await serverConfigManager.init();
   await authManager.load();
+  await partnerManager.init();
 
   if (!serverConfigManager.value.maintenanceMode) {
     await featureFlagsManager.init();
