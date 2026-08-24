@@ -54,6 +54,12 @@ const setupPartnerService = () =>
 const grantDelete = (ctx: MediumTestContext, sharedById: string, sharedWithId: string) =>
   setPartnerDeleteGrant(ctx.get(SystemMetadataRepository), { sharedById, sharedWithId, allowDelete: true });
 
+/** The automock is strict, so anything that emits has to be given an implementation up front. */
+const withEvents = <T extends { ctx: MediumTestContext<any> }>(setup: T): T => {
+  setup.ctx.getMock(EventRepository).emit.mockResolvedValue();
+  return setup;
+};
+
 beforeAll(async () => {
   defaultDatabase = await getKyselyDB();
 });
@@ -66,7 +72,7 @@ beforeAll(async () => {
 describe('partner asset deletion', () => {
   describe(`${AssetService.name}.deleteAll`, () => {
     it('should let a granted partner move a shared asset to the trash', async () => {
-      const { sut, ctx } = setupAssetService();
+      const { sut, ctx } = withEvents(setupAssetService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -80,7 +86,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should not let a partner delete a shared asset without a grant', async () => {
-      const { sut, ctx } = setupAssetService();
+      const { sut, ctx } = withEvents(setupAssetService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -92,7 +98,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should not let a granted partner permanently delete a shared asset', async () => {
-      const { sut, ctx } = setupAssetService();
+      const { sut, ctx } = withEvents(setupAssetService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -108,7 +114,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should let the owner permanently delete their own asset', async () => {
-      const { sut, ctx } = setupAssetService();
+      const { sut, ctx } = withEvents(setupAssetService());
       const { user: owner } = await ctx.newUser();
       const { asset } = await ctx.newAsset({ ownerId: owner.id });
 
@@ -119,7 +125,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should not let a granted user delete assets without a partnership', async () => {
-      const { sut, ctx } = setupAssetService();
+      const { sut, ctx } = withEvents(setupAssetService());
       const { user: owner } = await ctx.newUser();
       const { user: other } = await ctx.newUser();
       // a grant on its own means nothing, the partner row is what the access check resolves
@@ -132,7 +138,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should not let the sharing user delete the assets of the user they share with', async () => {
-      const { sut, ctx } = setupAssetService();
+      const { sut, ctx } = withEvents(setupAssetService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       // owner shares with recipient and grants delete, but not the other way around
@@ -148,7 +154,7 @@ describe('partner asset deletion', () => {
 
   describe(`${TrashService.name}.restoreAssets`, () => {
     it('should let a granted partner restore a shared asset from the trash', async () => {
-      const { sut, ctx } = setupTrashService();
+      const { sut, ctx } = withEvents(setupTrashService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -166,7 +172,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should not let a partner restore a shared asset without a grant', async () => {
-      const { sut, ctx } = setupTrashService();
+      const { sut, ctx } = withEvents(setupTrashService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -184,7 +190,7 @@ describe('partner asset deletion', () => {
 
   describe(PartnerPermissionService.name, () => {
     it('should report grants in both directions', async () => {
-      const { sut, ctx } = setupPartnerPermissionService();
+      const { sut, ctx } = withEvents(setupPartnerPermissionService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -202,7 +208,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should not report a grant left behind by a removed partnership', async () => {
-      const { sut, ctx } = setupPartnerPermissionService();
+      const { sut, ctx } = withEvents(setupPartnerPermissionService());
       const { user: owner } = await ctx.newUser();
       const { user: other } = await ctx.newUser();
       // e.g. the partner row went away through the cascade from a deleted user
@@ -215,7 +221,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should refuse to grant delete permission without a partnership', async () => {
-      const { sut, ctx } = setupPartnerPermissionService();
+      const { sut, ctx } = withEvents(setupPartnerPermissionService());
       const { user: owner } = await ctx.newUser();
       const { user: other } = await ctx.newUser();
 
@@ -225,7 +231,7 @@ describe('partner asset deletion', () => {
     });
 
     it('should revoke a grant', async () => {
-      const { sut, ctx } = setupPartnerPermissionService();
+      const { sut, ctx } = withEvents(setupPartnerPermissionService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
@@ -240,7 +246,7 @@ describe('partner asset deletion', () => {
 
   describe(`${PartnerService.name}.remove`, () => {
     it('should drop the delete grant when the partnership is removed', async () => {
-      const { sut, ctx } = setupPartnerService();
+      const { sut, ctx } = withEvents(setupPartnerService());
       const { user: owner } = await ctx.newUser();
       const { user: recipient } = await ctx.newUser();
       await ctx.newPartner({ sharedById: owner.id, sharedWithId: recipient.id });
