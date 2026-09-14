@@ -343,7 +343,7 @@ Mobile:
   from a `Row` rather than a `SwitchListTile` on purpose: upstream's
   `partner_page_test.dart` counts `ListTile`s.
 - `i18n/en.json` — two new keys. `mobile/lib/generated/` is gitignored and the
-  fork's Android workflow already runs `mise //mobile:codegen:translation`, so
+  fork's Android workflow runs the full `mise //mobile:codegen`, so
   the typed `context.t.partner_can_delete_assets(...)` accessor is generated at
   build time.
 - `presentation/actions/action.dart` — added `deletableAssetsActionProvider`

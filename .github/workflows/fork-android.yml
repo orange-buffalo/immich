@@ -70,12 +70,11 @@ jobs:
       - name: Install dependencies
         run: mise //mobile:install:ci
 
-      - name: Generate translation file
-        run: mise //mobile:codegen:translation
-
-      - name: Generate platform APIs
-        run: mise //mobile:codegen:pigeon
-        working-directory: ./mobile
+      # Since v3.2.0 upstream no longer commits generated dart code (drift,
+      # freezed, auto_route, openapi), so run the full codegen like
+      # build-mobile.yml does, not just translations and pigeon.
+      - name: Perform codegen
+        run: mise //mobile:codegen
 
       - name: Build APK
         working-directory: ./mobile
