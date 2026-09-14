@@ -1,15 +1,16 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/constants/enums.dart';
 import 'package:immich_mobile/domain/models/album/album.model.dart';
-import 'package:immich_mobile/presentation/widgets/action_buttons/download_action_button.widget.dart';
-import 'package:immich_mobile/presentation/widgets/action_buttons/share_action_button.widget.dart';
-import 'package:immich_mobile/presentation/widgets/action_buttons/trash_action_button.widget.dart';
+import 'package:immich_mobile/generated/translations.g.dart';
+import 'package:immich_mobile/presentation/actions/action.widget.dart';
+import 'package:immich_mobile/presentation/actions/asset_debug.action.dart';
+import 'package:immich_mobile/presentation/actions/delete.action.dart';
+import 'package:immich_mobile/presentation/actions/download.action.dart';
+import 'package:immich_mobile/presentation/actions/share.action.dart';
 import 'package:immich_mobile/presentation/widgets/album/album_selector.widget.dart';
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/base_bottom_sheet.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/action.provider.dart';
-import 'package:immich_mobile/providers/server_info.provider.dart';
 import 'package:immich_mobile/widgets/common/immich_toast.dart';
 
 class PartnerDetailBottomSheet extends ConsumerStatefulWidget {
@@ -36,8 +37,6 @@ class _PartnerDetailBottomSheetState extends ConsumerState<PartnerDetailBottomSh
 
   @override
   Widget build(BuildContext context) {
-    final isTrashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
-
     Future<void> addToAlbum(RemoteAlbum album) async {
       final result = await ref.read(actionProvider.notifier).addToAlbum(ActionSource.timeline, album);
 
@@ -46,15 +45,15 @@ class _PartnerDetailBottomSheetState extends ConsumerState<PartnerDetailBottomSh
       }
 
       if (!result.success) {
-        ImmichToast.show(context: context, msg: 'scaffold_body_error_occurred'.tr(), toastType: ToastType.error);
+        ImmichToast.show(context: context, msg: context.t.scaffold_body_error_occurred, toastType: ToastType.error);
         return;
       }
 
       ImmichToast.show(
         context: context,
         msg: result.count == 0
-            ? 'add_to_album_bottom_sheet_already_exists'.tr(namedArgs: {'album': album.name})
-            : 'add_to_album_bottom_sheet_added'.tr(namedArgs: {'album': album.name}),
+            ? context.t.add_to_album_bottom_sheet_already_exists(album: album.name)
+            : context.t.add_to_album_bottom_sheet_added(album: album.name),
       );
     }
 
@@ -67,12 +66,13 @@ class _PartnerDetailBottomSheetState extends ConsumerState<PartnerDetailBottomSh
       initialChildSize: 0.25,
       maxChildSize: 0.85,
       shouldCloseOnMinExtent: false,
-      actions: [
-        const ShareActionButton(source: ActionSource.timeline),
-        const DownloadActionButton(source: ActionSource.timeline),
-        // partners may trash each other's assets, but never delete them permanently, so there is
-        // nothing to offer when the trash feature is off
-        if (isTrashEnabled) const TrashActionButton(source: ActionSource.timeline),
+      actions: const <ActionColumnButton>[
+        .new(action: AssetDebugAction(source: .timeline)),
+        .new(action: ShareAction(source: .timeline)),
+        .new(action: DownloadAction(source: .timeline)),
+        // fork-only: partners may trash each other's assets. DeleteAction hides itself when the
+        // partner has not granted it, and never offers a permanent delete of a partner asset.
+        .new(action: DeleteAction(source: .timeline)),
       ],
       slivers: [
         const AddToAlbumHeader(),

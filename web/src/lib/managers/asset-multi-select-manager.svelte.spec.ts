@@ -4,7 +4,7 @@ import { authManager } from '$lib/managers/auth-manager.svelte';
 import { partnerManager } from '$lib/managers/partner-manager.svelte';
 import { timelineAssetFactory } from '@test-data/factories/asset-factory';
 import { preferencesFactory } from '@test-data/factories/preferences-factory';
-import { userAdminFactory, userFactory } from '@test-data/factories/user-factory';
+import { userAdminFactory } from '@test-data/factories/user-factory';
 
 describe('AssetMultiSelectManager', () => {
   let sut: AssetMultiSelectManager;
@@ -47,9 +47,7 @@ describe('AssetMultiSelectManager', () => {
   });
 
   it('treats assets shared by a partner as deletable', () => {
-    const user = userAdminFactory.build();
-    const partner = userFactory.build();
-    const stranger = userFactory.build();
+    const [user, partner, stranger] = userAdminFactory.buildList(3);
 
     const ownAsset = timelineAssetFactory.build({ ownerId: user.id });
     const partnerAsset = timelineAssetFactory.build({ ownerId: partner.id });

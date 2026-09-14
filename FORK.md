@@ -15,7 +15,7 @@ archaeology exercise.
 | `main`           | Pristine mirror of `immich-app/immich`. **Never commit here.** GitHub's "Sync fork" button must keep working. |
 | `orange-buffalo` | Our branch. Based on an upstream **release tag**, never on `main`. |
 
-Current base: **`v3.1.0`** (`8aa95c674`, 2026-07-27)
+Current base: **`v3.2.0`** (merged into this branch, 2026-09-14; previously `v3.1.0`)
 
 Release tags are deliberate. `main` is unreleased development code with
 in-flight schema migrations, which is not what we want running against the
@@ -57,9 +57,15 @@ build context (repo root, not `server/`). If upstream changes either, this
 workflow needs the same change. The Dockerfile was restructured substantially
 between `v3.1.0` and `main`, so re-verify the build on every version bump.
 
-### 2. `server/src/config.ts` — **modified**
+### 2. `server/src/dtos/config.dto.ts` — **modified**
 
-`defaults.newVersionCheck.enabled`: `true` → `false`.
+`defaults.newVersionCheck.enabled`: `true` → `false`. (`defaults` lived in
+`server/src/config.ts` until `v3.2.0` moved it here.)
+
+This breaks 9 upstream unit tests in `version.service.spec.ts` and
+`system-config.service.spec.ts`, which assume the check is on. Upstream's
+`test.yml` does not run on this branch, so they are left failing rather than
+patched.
 
 The version check does *not* use `IMMICH_REPOSITORY`. It calls a hardcoded
 immich-hosted endpoint (`https://version.immich.cloud/version`, set in
@@ -305,8 +311,9 @@ Web:
 - `src/lib/managers/partner-manager.svelte.ts` — added. Holds the delete grants,
   loaded in `utils/server.ts` `init()` and refreshed on `AuthUserLoaded` and
   from `PartnerSettings.svelte`.
-- `PartnerSettings.svelte` — the "Allow X to delete" switch, on the
-  *I share with them* side of each partner card.
+- `SharingSettings.svelte` (was `PartnerSettings.svelte` before `v3.2.0`) — the
+  "Allow X to delete" switch, on the *I share with them* side of each partner
+  card.
 - `asset-multi-select-manager.svelte.ts` — added `deletableAssets` /
   `isAllDeletable` alongside the existing `ownedAssets` / `isAllUserOwned`.
   `DeleteAssetsAction.svelte` switched to `deletableAssets`.
@@ -335,17 +342,28 @@ Mobile:
   fork's Android workflow already runs `mise //mobile:codegen:translation`, so
   the typed `context.t.partner_can_delete_assets(...)` accessor is generated at
   build time.
-- `action.provider.dart` — `trash`, `restoreTrash` and
-  `trashRemoteAndDeleteLocal` use `_getDeletableRemoteIdsForSource` instead of
-  `_getOwnedRemoteIdsForSource`; `deleteRemoteAndLocal` (permanent) stays on the
-  owned list. Every other action stays owner-only, and the filtering still
-  matters: the server rejects the whole request if *any* id is unauthorized, so
-  assets from shared albums must keep being dropped.
-- `action_button.utils.dart` — `ActionButtonContext` gained an optional
-  `canDelete` that defaults to `isOwner`; the trash/delete button types gate on
-  it, while `deletePermanent` stays on `isOwner`.
-- `bottom_bar.widget.dart`, `viewer_kebab_menu.widget.dart` pass it;
-  `partner_detail_bottom_sheet.widget.dart` gained a trash button.
+- `presentation/actions/action.dart` — added `deletableAssetsActionProvider`
+  next to upstream's `ownedAssetsActionProvider`.
+- `presentation/actions/delete.action.dart` — `DeleteAction`'s state provider
+  trashes own ∪ granted-partner assets, but falls back to own assets only
+  whenever the result would be a permanent delete (trash disabled, or everything
+  already trashed/locked). With only partner assets selected and trash disabled
+  the action hides itself. Every other action stays owner-only, and the
+  filtering still matters: the server rejects the whole request if *any* id is
+  unauthorized, so assets from shared albums must keep being dropped.
+- `presentation/actions/restore.action.dart` — `RestoreAction` uses
+  `deletableAssetsActionProvider` instead of `ownedAssetsActionProvider`.
+- `partner_detail_bottom_sheet.widget.dart` — gained a `DeleteAction`.
+- Tests: `test/unit/presentation/presentation_context.dart` overrides
+  `partnerPermissionsProvider` from a `partnerDeleteGrants` field; partner cases
+  added to `delete_action_test.dart` / `restore_action_test.dart`;
+  `bottom_bar_test.dart` overrides `deletableAssetsActionProvider`.
+
+`v3.2.0` replaced the old action buttons (`action.provider.dart` trash methods,
+`ActionButtonType.trash`, `DeleteActionButton` etc.) with self-gating
+`ActionBuilder`s in `presentation/actions/`. The bottom bar and kebab menu now
+render `DeleteAction`/`RestoreAction` unconditionally, so they need no fork
+change.
 
 **Conflict risk on rebase: MEDIUM-HIGH.** This is the one change that edits
 active upstream code across all three trees, though most of the volume sits in
@@ -396,7 +414,7 @@ the three offline-asset cases in `trash.e2e-spec.ts` cannot pass), and the
 
 - **Machine learning image.** We do not modify `machine-learning/`, so we do not
   build it. The deployment keeps pulling `ghcr.io/immich-app/immich-machine-learning`,
-  pinned to the upstream tag matching our base version (`v3.1.0`). If we ever
+  pinned to the upstream tag matching our base version (`v3.2.0`). If we ever
   patch `machine-learning/`, this fork must start building that image too.
 - **`server/Dockerfile` build metadata.** It hardcodes
   `IMMICH_REPOSITORY=immich-app/immich` and the associated URLs, so the server's

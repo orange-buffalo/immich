@@ -16,12 +16,26 @@ export const newAccessRepositoryMock = (): IAccessRepositoryMock => {
       checkCreateAccess: vitest.fn().mockResolvedValue(new Set()),
     },
 
+    clusterGroup: {
+      checkOwnerAccess: vitest.fn().mockResolvedValue(new Set()),
+      checkInviteAccess: vitest.fn().mockResolvedValue(new Set()),
+    },
+
+    clusterGroupRequest: {
+      checkOwnerAccess: vitest.fn().mockResolvedValue(new Set()),
+      checkGroupAccess: vitest.fn().mockResolvedValue(new Set()),
+    },
+
     asset: {
       checkOwnerAccess: vitest.fn().mockResolvedValue(new Set()),
       checkAlbumAccess: vitest.fn().mockResolvedValue(new Set()),
       checkPartnerAccess: vitest.fn().mockResolvedValue(new Set()),
       checkPartnerDeleteAccess: vitest.fn().mockResolvedValue(new Set()),
       checkSharedLinkAccess: vitest.fn().mockResolvedValue(new Set()),
+    },
+
+    assetFile: {
+      checkOwnerAccess: vitest.fn().mockResolvedValue(new Set()),
     },
 
     album: {

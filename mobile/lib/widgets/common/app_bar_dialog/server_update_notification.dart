@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/constants/constants.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
+import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/models/server_info/server_info.model.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -18,8 +19,10 @@ class ServerUpdateNotification extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final serverInfoState = ref.watch(serverInfoProvider);
 
-    Color errorColor = const Color.fromARGB(85, 253, 97, 83);
-    Color infoColor = context.isDarkTheme ? context.primaryColor.withAlpha(55) : context.primaryColor.withAlpha(25);
+    const Color errorColor = Color.fromARGB(85, 253, 97, 83);
+    final Color infoColor = context.isDarkTheme
+        ? context.primaryColor.withAlpha(55)
+        : context.primaryColor.withAlpha(25);
     // orange-buffalo fork: the Android app is side-loaded from our own server
     // rather than installed from the Play Store, so an "update available"
     // prompt must point at the APK bundled into the server image, not at
@@ -36,7 +39,7 @@ class ServerUpdateNotification extends HookConsumerWidget {
       return endpoint.replace(pathSegments: [...segments, kForkApkFileName], query: null, fragment: null).toString();
     }
 
-    void openUpdateLink() {
+    Future<void> openUpdateLink() {
       String url;
       if (serverInfoState.versionStatus == VersionStatus.serverOutOfDate) {
         url = kImmichLatestRelease;
@@ -51,7 +54,7 @@ class ServerUpdateNotification extends HookConsumerWidget {
         }
       }
 
-      launchUrlString(url, mode: LaunchMode.externalApplication);
+      return launchUrlString(url, mode: LaunchMode.externalApplication);
     }
 
     return SizedBox(
@@ -84,15 +87,15 @@ class ServerUpdateNotification extends HookConsumerWidget {
                 serverInfoState.versionStatus == VersionStatus.clientOutOfDate) ...[
               const SizedBox(width: 8),
               TextButton(
-                onPressed: openUpdateLink,
+                onPressed: () => unawaited(openUpdateLink()),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.all(4),
-                  minimumSize: const Size(0, 0),
+                  minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: serverInfoState.versionStatus == VersionStatus.clientOutOfDate
-                    ? Text("action_common_update".tr(context: context))
-                    : Text("view".tr()),
+                    ? Text(context.t.action_common_update)
+                    : Text(context.t.view),
               ),
             ],
           ],

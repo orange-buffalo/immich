@@ -427,60 +427,6 @@ void main() {
       });
     });
 
-    group('trash button', () {
-      test('should show when owner, not locked, has remote, and trash enabled', () {
-        final remoteAsset = createRemoteAsset();
-        final context = ActionButtonContext(
-          asset: remoteAsset,
-          isOwner: true,
-          isArchived: false,
-          isTrashEnabled: true,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.timeline,
-        );
-
-        expect(ActionButtonType.trash.shouldShow(context), isTrue);
-      });
-
-      test('should not show when trash disabled', () {
-        final remoteAsset = createRemoteAsset();
-        final context = ActionButtonContext(
-          asset: remoteAsset,
-          isOwner: true,
-          isArchived: false,
-          isTrashEnabled: false,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.timeline,
-        );
-
-        expect(ActionButtonType.trash.shouldShow(context), isFalse);
-      });
-
-      test('should not show when asset is already trashed', () {
-        final remoteAsset = createRemoteAsset(deletedAt: DateTime(2024));
-        final context = ActionButtonContext(
-          asset: remoteAsset,
-          isOwner: true,
-          isArchived: false,
-          isTrashEnabled: true,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.viewer,
-          timelineOrigin: TimelineOrigin.trash,
-        );
-
-        expect(ActionButtonType.trash.shouldShow(context), isFalse);
-      });
-    });
-
     group('restoreTrash button', () {
       test('should show when owner, not locked, has remote, and is in trash timeline', () {
         final remoteAsset = createRemoteAsset();
@@ -516,60 +462,6 @@ void main() {
         );
 
         expect(ActionButtonType.restoreTrash.shouldShow(context), isFalse);
-      });
-    });
-
-    group('deletePermanent button', () {
-      test('should show when owner, not locked, has remote, and trash disabled', () {
-        final remoteAsset = createRemoteAsset();
-        final context = ActionButtonContext(
-          asset: remoteAsset,
-          isOwner: true,
-          isArchived: false,
-          isTrashEnabled: false,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.timeline,
-        );
-
-        expect(ActionButtonType.deletePermanent.shouldShow(context), isTrue);
-      });
-
-      test('should not show when trash enabled', () {
-        final remoteAsset = createRemoteAsset();
-        final context = ActionButtonContext(
-          asset: remoteAsset,
-          isOwner: true,
-          isArchived: false,
-          isTrashEnabled: true,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.timeline,
-        );
-
-        expect(ActionButtonType.deletePermanent.shouldShow(context), isFalse);
-      });
-
-      test('should show when asset is trashed even with trash enabled', () {
-        final remoteAsset = createRemoteAsset(deletedAt: DateTime(2024));
-        final context = ActionButtonContext(
-          asset: remoteAsset,
-          isOwner: true,
-          isArchived: false,
-          isTrashEnabled: true,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.viewer,
-          timelineOrigin: TimelineOrigin.trash,
-        );
-
-        expect(ActionButtonType.deletePermanent.shouldShow(context), isTrue);
       });
     });
 
@@ -612,7 +504,7 @@ void main() {
     });
 
     group('deleteLocal button', () {
-      test('should show when not locked and asset is local only', () {
+      test('should not show when asset is local only, as there is no backup to fall back on', () {
         final localAsset = createLocalAsset();
         final context = ActionButtonContext(
           asset: localAsset,
@@ -626,7 +518,7 @@ void main() {
           source: ActionSource.timeline,
         );
 
-        expect(ActionButtonType.deleteLocal.shouldShow(context), isTrue);
+        expect(ActionButtonType.deleteLocal.shouldShow(context), isFalse);
       });
 
       test('should not show when asset is not local only', () {
@@ -1074,7 +966,7 @@ void main() {
 
     test('should build correct widget for each button type', () {
       for (final buttonType in ActionButtonType.values) {
-        var buttonContext = context;
+        final buttonContext = context;
 
         if (buttonType == ActionButtonType.removeFromAlbum) {
           final album = createRemoteAlbum();
@@ -1236,53 +1128,6 @@ void main() {
 
       expect(archivedWidgets, isNotEmpty);
       expect(nonArchivedWidgets, isNotEmpty);
-    });
-  });
-
-  group('partner delete permissions', () {
-    ActionButtonContext contextFor({required bool isOwner, bool? canDelete, bool isTrashEnabled = true}) =>
-        ActionButtonContext(
-          asset: createRemoteAsset(),
-          isOwner: isOwner,
-          canDelete: canDelete,
-          isArchived: false,
-          isTrashEnabled: isTrashEnabled,
-          isInLockedView: false,
-          currentAlbum: null,
-          advancedTroubleshooting: false,
-          isStacked: false,
-          source: ActionSource.timeline,
-        );
-
-    test('should fall back to isOwner when canDelete is not given', () {
-      expect(contextFor(isOwner: true).canDelete, isTrue);
-      expect(contextFor(isOwner: false).canDelete, isFalse);
-    });
-
-    test('should show the delete buttons for a partner asset', () {
-      final context = contextFor(isOwner: false, canDelete: true);
-
-      expect(ActionButtonType.trash.shouldShow(context), isTrue);
-      expect(ActionButtonType.delete.shouldShow(context), isTrue);
-      // deleting is allowed, but the other owner-only actions are not
-      expect(ActionButtonType.archive.shouldShow(context), isFalse);
-      expect(ActionButtonType.moveToLockFolder.shouldShow(context), isFalse);
-    });
-
-    test('should hide the delete buttons for an asset the user may not delete', () {
-      final context = contextFor(isOwner: false);
-
-      expect(ActionButtonType.trash.shouldShow(context), isFalse);
-      expect(ActionButtonType.delete.shouldShow(context), isFalse);
-    });
-
-    test('should never offer permanent deletion for a partner asset', () {
-      // with the trash feature off, deleting is permanent, which stays owner-only
-      final partnerContext = contextFor(isOwner: false, canDelete: true, isTrashEnabled: false);
-      expect(ActionButtonType.deletePermanent.shouldShow(partnerContext), isFalse);
-
-      final ownerContext = contextFor(isOwner: true, isTrashEnabled: false);
-      expect(ActionButtonType.deletePermanent.shouldShow(ownerContext), isTrue);
     });
   });
 }

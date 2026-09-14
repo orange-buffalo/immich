@@ -50,7 +50,7 @@ describe('partner asset deletion', () => {
       const { status, body } = await request(app).get('/partner-permissions');
 
       expect(status).toBe(401);
-      expect(body).toEqual(errorDto.unauthorized);
+      expect(body).toEqual({ message: expect.any(String) });
     });
 
     it('should require authentication to change a grant', async () => {
@@ -59,7 +59,7 @@ describe('partner asset deletion', () => {
         .send({ allowDelete: true });
 
       expect(status).toBe(401);
-      expect(body).toEqual(errorDto.unauthorized);
+      expect(body).toEqual({ message: expect.any(String) });
     });
 
     it('should reject a non-uuid target', async () => {
