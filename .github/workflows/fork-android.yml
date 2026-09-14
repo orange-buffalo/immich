@@ -7,21 +7,23 @@ name: Fork Android
 # This is the same set of steps on a hosted runner, signed with our own
 # keystore, and published as an artifact image the server build consumes.
 #
+# Only ever runs as a job of fork-docker.yml, which decides when the APK needs
+# rebuilding and builds the server image after it, since that image bundles
+# the APK. To rebuild by hand, dispatch "Fork Docker" instead.
+#
 # See FORK.md for the full ledger of fork changes.
 
 on:
-  push:
-    branches: [orange-buffalo]
-    paths:
-      - 'mobile/**'
-      - 'i18n/**'
-      - 'open-api/**'
-      - '.github/workflows/fork-android.yml'
-  workflow_dispatch:
-
-concurrency:
-  group: fork-android-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+    secrets:
+      KEY_JKS:
+        required: true
+      ALIAS:
+        required: true
+      ANDROID_KEY_PASSWORD:
+        required: true
+      ANDROID_STORE_PASSWORD:
+        required: true
 
 permissions:
   contents: read

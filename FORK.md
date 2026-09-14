@@ -179,9 +179,13 @@ as a static directory, so the APK is downloadable at `<server>/immich.apk` with
 no server code changes.
 
 **Ordering constraint:** the server image build depends on the APK artifact
-image existing. `fork-android.yml` must publish before `fork-docker.yml` can
-build. The `:latest` tag also means a server rebuild picks up whatever APK was
-published last, so bump and rebuild both together.
+image, and `:latest` means it picks up whatever APK was published last. This is
+enforced in CI: `fork-docker.yml` is the only triggered workflow. Its `changes`
+job diffs the push for `mobile/`, `i18n/`, `open-api/` and
+`fork-android.yml`; if anything matched, it calls `fork-android.yml` (a
+`workflow_call`-only reusable workflow) and the server job `needs` it. Mobile-only
+pushes therefore rebuild the server image too. A manual "Fork Docker" dispatch
+rebuilds the APK unless `build_apk` is unticked.
 
 **Conflict risk on rebase: LOW-MEDIUM** — upstream restructures this Dockerfile
 between releases (it changed substantially between v3.1.0 and main). Re-apply

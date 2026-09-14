@@ -9,13 +9,23 @@ name: Fork Docker
 # fork's own GHCR namespace. The machine-learning image is unmodified in this
 # fork, so the deployment keeps pulling it from ghcr.io/immich-app.
 #
+# The server image bundles the APK from ghcr.io/<owner>/immich-apk:latest, so
+# when the app's inputs change the APK is rebuilt first (fork-android.yml, called
+# as a job) and the server build waits for it. Mobile-only changes still rebuild
+# the server image, so it never ships a stale APK.
+#
 # See FORK.md for the full ledger of fork changes and the version-bump process.
 
 on:
   push:
     branches: [orange-buffalo]
-    paths-ignore: ['**.md', 'mobile/**', '.github/workflows/fork-android.yml', '.github/scripts/**']
+    paths-ignore: ['**.md', '.github/scripts/**']
   workflow_dispatch:
+    inputs:
+      build_apk:
+        description: Rebuild the Android APK before the server image
+        type: boolean
+        default: true
 
 concurrency:
   group: fork-docker-${{ github.ref }}
@@ -29,8 +39,65 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/immich-server
 
 jobs:
+  changes:
+    name: Detect APK changes
+    runs-on: ubuntu-latest
+    outputs:
+      apk: ${{ steps.detect.outputs.apk }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Detect
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BUILD_APK: ${{ inputs.build_apk }}
+          BEFORE: ${{ github.event.before }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if [[ "$EVENT_NAME" != "push" ]]; then
+            echo "apk=$BUILD_APK" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Diffing two trees needs only those two commits, not the history between them.
+          # A new branch or a force push can leave nothing to compare against, so rebuild.
+          if [[ "$BEFORE" =~ ^0+$ ]] || ! git fetch --no-tags --depth=1 "$REPOSITORY_URL" "$BEFORE"; then
+            echo "No previous commit to compare against, rebuilding the APK"
+            echo "apk=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # keep in sync with the inputs of fork-android.yml
+          if git diff --name-only "$BEFORE" HEAD |
+            grep -qE '^(mobile/|i18n/|open-api/|\.github/workflows/fork-android\.yml$)'; then
+            echo "apk=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apk=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  android:
+    name: Android
+    needs: changes
+    if: needs.changes.outputs.apk == 'true'
+    uses: ./.github/workflows/fork-android.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets:
+      KEY_JKS: ${{ secrets.KEY_JKS }}
+      ALIAS: ${{ secrets.ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+
   server:
     name: Build and Push Server
+    needs: [changes, android]
+    # a skipped APK build is fine, the last published APK is still current
+    if: ${{ !cancelled() && needs.changes.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.android.result) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
