@@ -15,7 +15,7 @@ archaeology exercise.
 | `main`           | Pristine mirror of `immich-app/immich`. **Never commit here.** GitHub's "Sync fork" button must keep working. |
 | `orange-buffalo` | Our branch. Based on an upstream **release tag**, never on `main`. |
 
-Current base: **`v3.2.0`** (merged into this branch, 2026-09-14; previously `v3.1.0`)
+Current base: **`v3.2.4`** (merged into this branch, 2026-10-02; previously `v3.2.2`)
 
 Release tags are deliberate. `main` is unreleased development code with
 in-flight schema migrations, which is not what we want running against the
@@ -418,7 +418,7 @@ the three offline-asset cases in `trash.e2e-spec.ts` cannot pass), and the
 
 - **Machine learning image.** We do not modify `machine-learning/`, so we do not
   build it. The deployment keeps pulling `ghcr.io/immich-app/immich-machine-learning`,
-  pinned to the upstream tag matching our base version (`v3.2.0`). If we ever
+  pinned to the upstream tag matching our base version (`v3.2.4`). If we ever
   patch `machine-learning/`, this fork must start building that image too.
 - **`server/Dockerfile` build metadata.** It hardcodes
   `IMMICH_REPOSITORY=immich-app/immich` and the associated URLs, so the server's
