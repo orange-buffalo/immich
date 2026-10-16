@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import ControlAppBar from '$lib/components/shared-components/ControlAppBar.svelte';
-  import CreateSharedLink from '$lib/components/timeline/actions/CreateSharedLinkAction.svelte';
   import DeleteAssets from '$lib/components/timeline/actions/DeleteAssetsAction.svelte';
   import DownloadAction from '$lib/components/timeline/actions/DownloadAction.svelte';
   import AssetSelectControlBar from '$lib/components/timeline/AssetSelectControlBar.svelte';
@@ -54,7 +53,8 @@
   <AssetSelectControlBar>
     {@const Actions = getAssetBulkActions($t)}
     <CommandPaletteDefaultProvider name={$t('assets')} actions={Object.values(Actions)} />
-    <CreateSharedLink />
+
+    <ActionButton action={Actions.CreateSharedLink} />
     <ActionButton action={Actions.AddToAlbum} />
     <DownloadAction />
     <DeleteAssets

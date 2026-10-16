@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { AuthDto } from 'src/dtos/auth.dto';
-import { BaseService } from 'src/services/base.service';
-import { getPartnerPermissions, partnerGrantKey, setPartnerDeleteGrant } from 'src/utils/partner-permissions';
+import { AuthDto } from 'src/dtos/auth.dto.js';
+import { BaseService } from 'src/services/base.service.js';
+import { getPartnerPermissions, partnerGrantKey, setPartnerDeleteGrant } from 'src/utils/partner-permissions.js';
 
 export type PartnerPermissionsResponseDto = {
   /** Users I have allowed to delete my assets. */

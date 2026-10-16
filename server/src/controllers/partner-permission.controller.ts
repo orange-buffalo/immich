@@ -1,12 +1,13 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
-import { AuthDto } from 'src/dtos/auth.dto';
-import { Permission } from 'src/enum';
-import { Auth, Authenticated } from 'src/middleware/auth.guard';
-import { PartnerPermissionService, PartnerPermissionsResponseDto } from 'src/services/partner-permission.service';
-import { UUIDParamDto } from 'src/validation';
 import z from 'zod';
+import type { AuthDto } from 'src/dtos/auth.dto.js';
+import type { PartnerPermissionsResponseDto } from 'src/services/partner-permission.service.js';
+import { Permission } from 'src/enum.js';
+import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
+import { PartnerPermissionService } from 'src/services/partner-permission.service.js';
+import { UUIDParamDto } from 'src/validation.js';
 
 class PartnerDeletePermissionDto extends createZodDto(
   z.object({ allowDelete: z.boolean().describe('Allow this partner to trash and restore my assets') }),

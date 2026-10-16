@@ -1,6 +1,6 @@
-import { SystemMetadataKey } from 'src/enum';
-import { SystemMetadataRepository } from 'src/repositories/system-metadata.repository';
-import { SystemMetadata } from 'src/types';
+import { SystemMetadataKey } from 'src/enum.js';
+import { SystemMetadataRepository } from 'src/repositories/system-metadata.repository.js';
+import { SystemMetadata } from 'src/types.js';
 
 /**
  * Fork-only: per-partner permission grants, see FORK.md.
