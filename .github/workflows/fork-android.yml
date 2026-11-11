@@ -50,6 +50,16 @@ jobs:
           # Match v3.4.0's use-mise action and its lockfile format.
           version: 2026.10.5
 
+      - name: Prepare native build toolchain
+        # Flutter's native build hooks do not inherit mise's trust environment.
+        # Persist trust for the configs its shims discover, and install the
+        # native crate's Rust version (which differs from mobile's codegen).
+        run: |
+          mise trust mise.toml
+          mise trust mobile/mise.toml
+          mise trust native/mise.toml
+          mise -C native install rust
+
       - name: Create the keystore
         env:
           KEY_JKS: ${{ secrets.KEY_JKS }}
