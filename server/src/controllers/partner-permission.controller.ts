@@ -3,10 +3,12 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
 import z from 'zod';
 import type { AuthDto } from 'src/dtos/auth.dto.js';
-import type { PartnerPermissionsResponseDto } from 'src/services/partner-permission.service.js';
 import { Permission } from 'src/enum.js';
 import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
-import { PartnerPermissionService } from 'src/services/partner-permission.service.js';
+import {
+  PartnerPermissionService,
+  type PartnerPermissionsResponseDto,
+} from 'src/services/partner-permission.service.js';
 import { UUIDParamDto } from 'src/validation.js';
 
 class PartnerDeletePermissionDto extends createZodDto(

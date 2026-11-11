@@ -73,7 +73,7 @@ jobs:
 
           # keep in sync with the inputs of fork-android.yml
           if git diff --name-only "$BEFORE" HEAD |
-            grep -qE '^(mobile/|i18n/|open-api/|\.github/workflows/fork-android\.yml$)'; then
+            grep -qE '^(mobile/|native/|i18n/|open-api/|\.github/workflows/fork-android\.yml$)'; then
             echo "apk=true" >> "$GITHUB_OUTPUT"
           else
             echo "apk=false" >> "$GITHUB_OUTPUT"

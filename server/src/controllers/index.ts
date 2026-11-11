@@ -26,6 +26,7 @@ import { NotificationController } from 'src/controllers/notification.controller.
 import { OAuthController } from 'src/controllers/oauth.controller.js';
 import { PartnerPermissionController } from 'src/controllers/partner-permission.controller.js';
 import { PartnerController } from 'src/controllers/partner.controller.js';
+import { PasskeyController } from 'src/controllers/passkey.controller.js';
 import { PersonController } from 'src/controllers/person.controller.js';
 import { PluginController } from 'src/controllers/plugin.controller.js';
 import { QueueController } from 'src/controllers/queue.controller.js';
@@ -75,6 +76,7 @@ export const controllers = [
   OAuthController,
   PartnerController,
   PartnerPermissionController,
+  PasskeyController,
   PersonController,
   PluginController,
   QueueController,

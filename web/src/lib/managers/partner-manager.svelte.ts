@@ -1,6 +1,6 @@
-import { authManager } from '$lib/managers/auth-manager.svelte';
-import { eventManager } from '$lib/managers/event-manager.svelte';
-import { getPartnerPermissions, type PartnerPermissions } from '$lib/services/partner-permission.service';
+import { authManager } from '#lib/managers/auth-manager.svelte.ts';
+import { eventManager } from '#lib/managers/event-manager.svelte.ts';
+import { getPartnerPermissions, type PartnerPermissions } from '#lib/queries/partner-permission.query.ts';
 
 /**
  * Fork-only, see FORK.md. Tracks which partners may delete whose assets. Partner sharing itself is

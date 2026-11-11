@@ -10,12 +10,12 @@ archaeology exercise.
 
 ## Branch model
 
-| Branch           | Contents                                                       |
-| ---------------- | -------------------------------------------------------------- |
+| Branch           | Contents                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | `main`           | Pristine mirror of `immich-app/immich`. **Never commit here.** GitHub's "Sync fork" button must keep working. |
-| `orange-buffalo` | Our branch. Based on an upstream **release tag**, never on `main`. |
+| `orange-buffalo` | Our branch. Based on an upstream **release tag**, never on `main`.                                            |
 
-Current base: **`v3.3.6`** (merged into this branch, 2026-11-06; previously `v3.3.3`)
+Current base: **`v3.4.0`** (merged into this branch, 2026-11-11; previously `v3.3.6`)
 
 Release tags are deliberate. `main` is unreleased development code with
 in-flight schema migrations, which is not what we want running against the
@@ -25,7 +25,7 @@ photo library.
 
 **Prefer adding new files over editing upstream files.** A new file can never
 conflict during a rebase; an edited upstream file can. Every change below is
-currently an *added* file, which is why the conflict column reads as it does.
+currently an _added_ file, which is why the conflict column reads as it does.
 If you must edit an upstream file, record it here with enough context that the
 next person can re-apply it by hand.
 
@@ -67,7 +67,7 @@ This breaks 9 upstream unit tests in `version.service.spec.ts` and
 `test.yml` does not run on this branch, so they are left failing rather than
 patched.
 
-The version check does *not* use `IMMICH_REPOSITORY`. It calls a hardcoded
+The version check does _not_ use `IMMICH_REPOSITORY`. It calls a hardcoded
 immich-hosted endpoint (`https://version.immich.cloud/version`, set in
 `config.repository.ts`, with no env override) and compares the result against
 `serverVersion` from `server/package.json`. Because this branch sits on an
@@ -158,7 +158,7 @@ own `PackageInfo` version against the server's in
 `server_info.provider.dart:_checkServerVersionMismatch`. Nothing had to be
 implemented for that.
 
-The only upstream-bound part was the *link*: on Android it opened the Play
+The only upstream-bound part was the _link_: on Android it opened the Play
 Store, which would install the upstream app. It now points at
 `<server>/immich.apk`, derived from `StoreKey.serverEndpoint` (a trailing `api`
 segment is stripped, so sub-path deployments work).
@@ -181,7 +181,7 @@ no server code changes.
 **Ordering constraint:** the server image build depends on the APK artifact
 image, and `:latest` means it picks up whatever APK was published last. This is
 enforced in CI: `fork-docker.yml` is the only triggered workflow. Its `changes`
-job diffs the push for `mobile/`, `i18n/`, `open-api/` and
+job diffs the push for `mobile/`, `native/`, `i18n/`, `open-api/` and
 `fork-android.yml`; if anything matched, it calls `fork-android.yml` (a
 `workflow_call`-only reusable workflow) and the server job `needs` it. Mobile-only
 pushes therefore rebuild the server image too. A manual "Fork Docker" dispatch
@@ -208,7 +208,7 @@ The trashed asset lands in the **owner's** trash, not the actor's, so the owner
 keeps the usual restore/retention window.
 
 **Delete is opt-in per partner, and one-directional.** Sharing alone grants
-nothing; the *sharer* has to turn on "Allow X to delete" (web: user settings →
+nothing; the _sharer_ has to turn on "Allow X to delete" (web: user settings →
 partner sharing, mobile: the partner list). `A` granting `B` lets `B` delete
 `A`'s assets, and the reverse needs `B` to share with and grant `A` separately.
 
@@ -233,7 +233,7 @@ until you delete the row and the column by hand.
 `character varying`), but it is streamed to clients as
 `SyncEntityType.UserMetadataV1`, and mobile's `sync_stream.repository.dart` maps
 the key through an exhaustive `switch` with no default — an unknown key breaks
-sync on the *upstream* app.
+sync on the _upstream_ app.
 
 So grants live in **`system_metadata`** under the key
 `fork:partner-permissions`. That table's `key` is `character varying`, it is
@@ -264,7 +264,7 @@ Server:
 - `src/services/partner-permission.service.ts`,
   `src/controllers/partner-permission.controller.ts` — added, exposing
   `GET /partner-permissions` and `PUT /partner-permissions/:id`. Upstream's
-  `PUT /partners/:id` is the *recipient* adjusting their own view
+  `PUT /partners/:id` is the _recipient_ adjusting their own view
   (`inTimeline`), so it is the wrong shape for a permission the sharer grants.
 - `src/services/partner.service.ts` — `remove()` drops the grant, so recreating
   a partnership does not silently restore it.
@@ -310,13 +310,13 @@ be far worse.
 
 Web:
 
-- `src/lib/services/partner-permission.service.ts` — added, a hand-written
+- `src/lib/queries/partner-permission.query.ts` — added, a hand-written
   `fetch` wrapper for the two fork routes.
 - `src/lib/managers/partner-manager.svelte.ts` — added. Holds the delete grants,
-  loaded in `utils/server.ts` `init()` and refreshed on `AuthUserLoaded` and
+  loaded in `utils/client.ts` `init()` and refreshed on `AuthUserLoaded` and
   from `PartnerSettings.svelte`.
 - `SharingSettings.svelte` (was `PartnerSettings.svelte` before `v3.2.0`) — the
-  "Allow X to delete" switch, on the *I share with them* side of each partner
+  "Allow X to delete" switch, on the _I share with them_ side of each partner
   card.
 - `asset-multi-select-manager.svelte.ts` — added `deletableAssets` /
   `isAllDeletable` alongside the existing `ownedAssets` / `isAllUserOwned`.
@@ -353,7 +353,7 @@ Mobile:
   whenever the result would be a permanent delete (trash disabled, or everything
   already trashed/locked). With only partner assets selected and trash disabled
   the action hides itself. Every other action stays owner-only, and the
-  filtering still matters: the server rejects the whole request if *any* id is
+  filtering still matters: the server rejects the whole request if _any_ id is
   unauthorized, so assets from shared albums must keep being dropped.
 - `presentation/actions/restore.action.dart` — `RestoreAction` uses
   `deletableAssetsActionProvider` instead of `ownedAssetsActionProvider`.
@@ -418,7 +418,7 @@ the three offline-asset cases in `trash.e2e-spec.ts` cannot pass), and the
 
 - **Machine learning image.** We do not modify `machine-learning/`, so we do not
   build it. The deployment keeps pulling `ghcr.io/immich-app/immich-machine-learning`,
-  pinned to the upstream tag matching our base version (`v3.3.6`). If we ever
+  pinned to the upstream tag matching our base version (`v3.4.0`). If we ever
   patch `machine-learning/`, this fork must start building that image too.
 - **`server/Dockerfile` build metadata.** It hardcodes
   `IMMICH_REPOSITORY=immich-app/immich` and the associated URLs, so the server's
@@ -426,14 +426,14 @@ the three offline-asset cases in `trash.e2e-spec.ts` cannot pass), and the
   patching it would mean editing an upstream file for no functional gain.
 - **Media location.** Deployment mounts photos at `/data`, which is upstream's
   default since `v1.137.0`. No patch needed.
-- **Live websocket notification to the *owner* when a partner trashes their
+- **Live websocket notification to the _owner_ when a partner trashes their
   asset.** `on_asset_trash` is emitted to the acting user only, so an owner with
   the web app already open sees the photo disappear on the next refresh rather
   than instantly. Mobile is unaffected — the sync stream carries the change.
   Widening this would mean changing the shape of the `AssetTrashAll` event,
   which upstream also uses for archive/duplicate/integrity flows.
 - **System config via `IMMICH_CONFIG_FILE`.** Would make settings declarative,
-  but it makes the *entire* admin settings UI read-only
+  but it makes the _entire_ admin settings UI read-only
   (`system-config.service.ts`: "Cannot update configuration while
   IMMICH_CONFIG_FILE is in use"). Not worth it for one toggle.
 
@@ -462,10 +462,10 @@ Then:
 
 Published image: `ghcr.io/orange-buffalo/immich-server`
 
-| Tag             | Meaning                                            |
-| --------------- | -------------------------------------------------- |
-| `orange-buffalo`| Moving tag, latest build of this branch.           |
-| `sha-<short>`   | Immutable, 7-char commit sha. **Pin this in the Swarm stack** — Swarm will not redeploy on an unchanged tag. |
+| Tag              | Meaning                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `orange-buffalo` | Moving tag, latest build of this branch.                                                                     |
+| `sha-<short>`    | Immutable, 7-char commit sha. **Pin this in the Swarm stack** — Swarm will not redeploy on an unchanged tag. |
 
 Consumed by `orange-buffalo-cloud/immich/immich.yml`.
 
