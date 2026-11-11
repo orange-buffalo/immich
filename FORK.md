@@ -312,6 +312,8 @@ Web:
 
 - `src/lib/queries/partner-permission.query.ts` — added, a hand-written
   `fetch` wrapper for the two fork routes.
+- `web/test/common/dispatcher.ts` — supplies empty partner grants for the
+  fork-only read endpoint, which is excluded from upstream's OpenAPI schema.
 - `src/lib/managers/partner-manager.svelte.ts` — added. Holds the delete grants,
   loaded in `utils/client.ts` `init()` and refreshed on `AuthUserLoaded` and
   from `PartnerSettings.svelte`.

@@ -97,6 +97,11 @@ export class Dispatcher {
   }
 
   async dispatch(method: string, url: URL, body: unknown): Promise<Response> {
+    // Fork-only endpoint is deliberately excluded from the upstream OpenAPI schema.
+    if (method === 'GET' && url.pathname === '/api/partner-permissions') {
+      return { status: 200, json: { grantedByMe: [], grantedToMe: [] } };
+    }
+
     const match = matchOperation(method, url.pathname);
     if (!match) {
       this.unhandled.push(`${method} ${url.pathname}${url.search} (no matching OpenAPI operation)`);
