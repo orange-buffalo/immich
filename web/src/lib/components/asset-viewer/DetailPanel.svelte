@@ -157,7 +157,7 @@
         <div><Icon icon={mdiImageOutline} size="24" /></div>
 
         <div>
-          <div class="flex place-items-start justify-end gap-2 break-all whitespace-pre-wrap">
+          <div class="flex place-items-start justify-between gap-2 break-all whitespace-pre-wrap">
             <Text title={asset.originalFileName}>{truncateMiddle(asset.originalFileName)}</Text>
             {#if isOwner}
               <IconButton
